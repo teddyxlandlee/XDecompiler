@@ -1,0 +1,3 @@
+xland.ioutils.xdecompiler.mappings.IntermediaryMappingProvider
+xland.ioutils.xdecompiler.mappings.YarnMappingProvider
+xland.ioutils.xdecompiler.mappings.MojMapsMappingProvider
