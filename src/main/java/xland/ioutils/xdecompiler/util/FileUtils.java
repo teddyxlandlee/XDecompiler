@@ -67,4 +67,13 @@ public class FileUtils {
             }
         }
     }
+
+    @Deprecated
+    public static void symlink(Path from, Path to) throws IOException {
+        try {
+            Files.createSymbolicLink(to, from);
+        } catch (UnsupportedOperationException e) {
+            Files.copy(from, to);
+        }
+    }
 }

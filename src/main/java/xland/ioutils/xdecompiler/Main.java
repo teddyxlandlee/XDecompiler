@@ -75,7 +75,7 @@ public record Main(String version, DecompilerProvider decompilerProvider,
         }
 
         LOGGER.info("\tMerging...");
-        final Path mergedJar = TempDirs.get().createFile();
+        final Path mergedJar = TempDirs.get().createFile(".jar");
         final Path resources = TempDirs.get().createFile();
 
         try (ZipOutputStream mergedJarOut = new ZipOutputStream(Files.newOutputStream(mergedJar));
@@ -140,6 +140,7 @@ public record Main(String version, DecompilerProvider decompilerProvider,
                 .map(cf -> cf.thenAcceptAsync(pair -> {
                     // decompile
                     LOGGER.info("...Decompiling {}", pair.getValue());
+                    LOGGER.debug("\tClasses of {} is from {}", pair.getValue(), pair.getKey());
                     final Path pathOut = output().resolve(pair.getValue());
                     try {
                         Files.createDirectories(pathOut);
@@ -155,11 +156,14 @@ public record Main(String version, DecompilerProvider decompilerProvider,
                               MappingTreeView mapping, String targetNs) throws IOException {
         final TinyRemapper r = RemapUtil.getTinyRemapper(mapping, MappingProvider.SOURCE_NAMESPACE, targetNs, builder -> {});
 
-        r.readInputs(input);
-        r.readClassPath(libraries.toArray(new Path[0]));
         try (OutputConsumerPath outputConsumerPath = new OutputConsumerPath.Builder(output)
                 .assumeArchive(true).build()) {
+            r.readInputs(input);
+            r.readClassPath(libraries.toArray(new Path[0]));
             r.apply(outputConsumerPath);
+        } finally {
+            r.finish();
+            LOGGER.debug("Finished remapping from {} to {}", input, output);
         }
     }
 
