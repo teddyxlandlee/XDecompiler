@@ -100,7 +100,7 @@ public class ExtractBundler {
 
     private record FileEntry(String hash, String id, String path) {
         public static FileEntry parseLine(String line) {
-            String[] fields = line.split(" ");
+            String[] fields = line.split("\\s+");
             if (fields.length != 3) {
                 throw new IllegalStateException("Malformed library entry: " + line);
             }
