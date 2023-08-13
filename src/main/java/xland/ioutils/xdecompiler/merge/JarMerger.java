@@ -101,7 +101,7 @@ public class JarMerger implements AutoCloseable {
 
         ExecutorService service = Executors.newFixedThreadPool(2);
         service.submit(() -> readToMap(inputClient, entriesClient, outputResources));
-        service.submit(() -> readToMap(inputServer, entriesServer, outputResources));
+        service.submit(() -> readToMap(inputServer, entriesServer, null));
         service.shutdown();
         
         boolean mergeSuccess;
@@ -121,6 +121,8 @@ public class JarMerger implements AutoCloseable {
         ClassMerger cm = new ClassMerger();
 
         entriesAll.parallelStream().map((entry) -> {
+            boolean isClass = entry.endsWith(".class");
+
             boolean isMinecraft = entriesClient.containsKey(entry) || entry.startsWith("net/minecraft/") || !entry.contains("/");
             Entry result;
             String side = null;
@@ -131,8 +133,10 @@ public class JarMerger implements AutoCloseable {
             if (entry1 != null && entry2 != null) {
                 if (Arrays.equals(entry1.data, entry2.data)) {
                     result = entry1;
-                } else {
+                } else if (isClass) {
                     result = new Entry(entry1.path, cm.merge(entry1.data, entry2.data));
+                } else {
+                    result = entry1;
                 }
             } else if ((result = entry1) != null) {
                 side = "CLIENT";
@@ -140,13 +144,18 @@ public class JarMerger implements AutoCloseable {
                 side = "SERVER";
             }
 
-            if (!isMinecraft && "SERVER".equals(side)) {
+            if (isClass && !isMinecraft && "SERVER".equals(side)) {
                 // Server bundles libraries, client doesn't - skip them
                 return null;
             }
 
             if (result != null) {
-                if (isMinecraft) {
+                if (isMinecraft && isClass) {
+                    if (LOGGER.isDebugEnabled()) {
+                        String cvr = ClassVersionUtil.classVersion1(result.data);
+                        if (cvr != null)
+                            LOGGER.debug("Merging {}, class version {}", result.path, cvr);
+                    }
                     byte[] data = result.data;
                     ClassReader reader = new ClassReader(data);
                     ClassWriter writer = new ClassWriter(0);

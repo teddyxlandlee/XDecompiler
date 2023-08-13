@@ -19,6 +19,8 @@ import net.fabricmc.mappingio.tree.MappingTreeView;
 import net.fabricmc.mappingio.tree.MemoryMappingTree;
 import org.jetbrains.annotations.Nullable;
 import xland.ioutils.xdecompiler.mcmeta.VersionManifest;
+import xland.ioutils.xdecompiler.util.CommonUtils;
+import xland.ioutils.xdecompiler.util.ConcurrentUtils;
 import xland.ioutils.xdecompiler.util.Identified;
 import xland.ioutils.xdecompiler.util.PublicProperties;
 
@@ -27,8 +29,8 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.stream.Collectors;
 
 public interface MappingProvider extends Identified {
     String SOURCE_NAMESPACE = "official";
@@ -56,28 +58,29 @@ public interface MappingProvider extends Identified {
         });
 
         MemoryMappingTree tree = new MemoryMappingTree();
-        tree.setSrcNamespace("official");
-        ExecutorService executors = Executors.newFixedThreadPool(PublicProperties.mappingThreads());
+        tree.setSrcNamespace(SOURCE_NAMESPACE);
+        tree.setDstNamespaces(map.values().stream().map(MappingProvider::destNamespace).collect(Collectors.toList()));
+        CopyOnWriteArrayList<MappingTreeView> treeViews = new CopyOnWriteArrayList<>();
 
-        CompletableFuture.allOf(map.values().stream()
+        ConcurrentUtils.run(PublicProperties.mappingThreads(), executors -> map.values().stream()
                 .map(p -> CompletableFuture.supplyAsync(() -> {
                     try {
                         return p.prepare(versionMeta, args.getOrDefault(p.id(), ""));
                     } catch (IOException e) {
-                        throw new RuntimeException(e);
+                        CommonUtils.sneakyThrow(e);
+                        throw new AssertionError();
                     }
                 }, executors))
-                .map(f -> f.thenAccept(t -> {
-                    try {
-                        t.accept(tree);
-                    } catch (IOException e) {
-                        throw new RuntimeException(e);
-                    }
-                }))
-                .toArray(CompletableFuture[]::new)
-        ).join();
+                .map(f -> f.thenAccept(treeViews::add))
+        );
 
-        executors.shutdown();
+        try {
+            for (MappingTreeView treeView : treeViews) {
+                treeView.accept(tree);
+            }
+        } catch (IOException e) {
+            CommonUtils.sneakyThrow(e);
+        }
 
         return tree;
     }

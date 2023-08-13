@@ -101,11 +101,12 @@ public class ExtractBundler {
     private record FileEntry(String hash, String id, String path) {
         public static FileEntry parseLine(String line) {
             String[] fields = line.split(" ");
-            if (fields.length != 2) {
+            if (fields.length != 3) {
                 throw new IllegalStateException("Malformed library entry: " + line);
             }
-            String path = fields[1].substring(1);
-            return new FileEntry(fields[0], path, path);
+            String id = fields[1];
+            String path = fields[2];
+            return new FileEntry(fields[0], id, path);
         }
     }
 }

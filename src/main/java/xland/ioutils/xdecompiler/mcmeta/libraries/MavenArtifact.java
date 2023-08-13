@@ -15,6 +15,8 @@
  */
 package xland.ioutils.xdecompiler.mcmeta.libraries;
 
+import xland.ioutils.xdecompiler.util.CommonUtils;
+
 import java.net.MalformedURLException;
 import java.net.URL;
 
@@ -72,7 +74,8 @@ public record MavenArtifact(String group, String name, String version, String cl
                     sb.toString()
             );
         } catch (MalformedURLException e) {
-            throw new RuntimeException(e);
+            CommonUtils.sneakyThrow(e);
+            throw new AssertionError();
         }
     }
 

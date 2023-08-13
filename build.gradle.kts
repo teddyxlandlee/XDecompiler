@@ -45,7 +45,7 @@ dependencies {
     runtimeOnly("org.slf4j:slf4j-simple:2.0.7")
     compileOnly("org.jetbrains:annotations:23.0.0")
 
-    //testCompileOnly("net.fabricmc:stitch:0.6.2")
+    testCompileOnly("net.fabricmc:stitch:0.6.2")
 }
 
 tasks.processResources {

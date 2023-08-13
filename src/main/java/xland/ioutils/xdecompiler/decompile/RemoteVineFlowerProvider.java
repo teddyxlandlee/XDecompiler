@@ -21,6 +21,7 @@ import org.slf4j.Logger;
 import xland.ioutils.xdecompiler.mcmeta.HashMismatchException;
 import xland.ioutils.xdecompiler.mcmeta.HashingUtil;
 import xland.ioutils.xdecompiler.mcmeta.RemoteFile;
+import xland.ioutils.xdecompiler.util.CommonUtils;
 import xland.ioutils.xdecompiler.util.LogUtils;
 import xland.ioutils.xdecompiler.util.PublicProperties;
 import xland.ioutils.xdecompiler.util.TempDirs;
@@ -40,6 +41,7 @@ import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.jar.JarFile;
+import java.util.zip.GZIPOutputStream;
 
 public class RemoteVineFlowerProvider implements DecompilerProvider {
     private static final Logger LOGGER = LogUtils.getLogger();
@@ -74,7 +76,7 @@ public class RemoteVineFlowerProvider implements DecompilerProvider {
         final String prop = PublicProperties.vineFlowerLogDir();
         if (!prop.isEmpty()) {
             logFile = Path.of(prop).resolve(dirOut.getFileName() + "-" 
-                    + UUID.randomUUID().toString().substring(24) + ".txt");
+                    + UUID.randomUUID().toString().substring(24) + ".txt.gz");
             LOGGER.info("Decompile log for " + dirOut + " will be dumped into " + logFile);
         }
 
@@ -100,7 +102,8 @@ record VineFlowerInstance(ClassLoader cl, String mainClass) {
                 if (loggingFile == null)
                     ps = (new PrintStream(OutputStream.nullOutputStream()));
                 else {
-                    ps = (new PrintStream(Files.newOutputStream(loggingFile)));
+                    Files.createDirectories(loggingFile.getParent());
+                    ps = (new PrintStream(new GZIPOutputStream(Files.newOutputStream(loggingFile))));
                 }
                 threadLocal.set(ps);
 
@@ -112,7 +115,7 @@ record VineFlowerInstance(ClassLoader cl, String mainClass) {
                     threadLocal.remove();
                 }
             } catch (Throwable t) {
-                sneakyThrow(t);
+                CommonUtils.sneakyThrow(t);
             }
         }, "VineFlower-Runner-" + RUNNER_ID.getAndIncrement());
         thread.setContextClassLoader(cl);
@@ -120,7 +123,7 @@ record VineFlowerInstance(ClassLoader cl, String mainClass) {
         try {
             thread.join();
         } catch (InterruptedException e) {
-            sneakyThrow(e);
+            CommonUtils.sneakyThrow(e);
         }
     }
 
@@ -185,8 +188,10 @@ record VineFlowerInstance(ClassLoader cl, String mainClass) {
                 return new MethodVisitor(Opcodes.ASM9, mv) {
                     @Override
                     public void visitFieldInsn(int opcode, String owner, String name, String descriptor) {
-                        if (!(opcode == Opcodes.GETSTATIC && "java/lang/System".equals(owner) && "out".equals(name) && "Ljava/io/PrintStream;".equals(descriptor)))
+                        if (!(opcode == Opcodes.GETSTATIC && "java/lang/System".equals(owner) && "out".equals(name) && "Ljava/io/PrintStream;".equals(descriptor))) {
                             super.visitFieldInsn(opcode, owner, name, descriptor);
+                            return;
+                        }
                         super.visitMethodInsn(Opcodes.INVOKESTATIC, HOLDER_CLASS, "get", "()Ljava/io/PrintStream;", false);
                     }
                 };
@@ -228,6 +233,7 @@ record VineFlowerInstance(ClassLoader cl, String mainClass) {
         mv.visitMethodInsn(Opcodes.INVOKESPECIAL, "java/lang/ThreadLocal", "<init>", "()V", false);
         mv.visitFieldInsn(Opcodes.PUTSTATIC, HOLDER_CLASS, "threadLocal", "Ljava/lang/ThreadLocal;");
         mv.visitInsn(Opcodes.RETURN);
+        mv.visitMaxs(-1, -1);
         mv.visitEnd();
 
         cw.visitEnd();
@@ -260,14 +266,5 @@ record VineFlowerInstance(ClassLoader cl, String mainClass) {
                 HashingUtil::sha512);
         remoteFile.download(file);
         return file;
-    }
-
-    private static void sneakyThrow(Throwable t) {
-        sneakyThrow0(t);
-    }
-
-    @SuppressWarnings("unchecked")
-    private static <T extends Throwable> void sneakyThrow0(Throwable t) throws T {
-        throw (T) t;
     }
 }

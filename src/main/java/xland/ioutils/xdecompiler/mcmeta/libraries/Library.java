@@ -19,6 +19,7 @@ import xland.ioutils.xdecompiler.mcmeta.HashingUtil;
 import xland.ioutils.xdecompiler.mcmeta.RemoteFile;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 
 public record Library(MavenArtifact artifact, RemoteFile remoteFile) {
@@ -28,6 +29,7 @@ public record Library(MavenArtifact artifact, RemoteFile remoteFile) {
         try {
             if (HashingUtil.matchesFileSha1(path, remotedFile.hash()))
                 return path;
+            Files.createDirectories(path.getParent());
             remotedFile.download(path);
         } catch (IOException e) {
             throw new RuntimeException("Failed to read/write/download " + artifact, e);

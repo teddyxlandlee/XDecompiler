@@ -80,9 +80,21 @@ public class YarnMappingProvider implements MappingProvider {
 
         MemoryMappingTree tree = new MemoryMappingTree();
         MappingVisitor visitor = tree;
-        visitor = new MappingSourceNsSwitch(visitor, "intermediary");
         visitor = new MappingDstNsReorder(visitor, "yarn");
+        visitor = new MappingSourceNsSwitch(visitor, "intermediary");
         visitor = new MappingNsRenamer(visitor, Map.of("named", "yarn"));
+
+        if (xland.ioutils.xdecompiler.util.DebugUtils.flagged(3)) {
+            var f = xland.ioutils.xdecompiler.util.TempDirs.get().createFile();
+            LOGGER.info("Dumping mapping to {} due to debug flag 3...", f);
+            try (var w = new net.fabricmc.mappingio.format.Tiny2Writer(java.nio.file.Files.newBufferedWriter(f), true)) {
+                MappingVisitor visitor1 = w;
+                visitor1 = new MappingDstNsReorder(visitor1, "yarn");
+                visitor1 = new MappingSourceNsSwitch(visitor1, "intermediary");
+                visitor1 = new MappingNsRenamer(visitor1, Map.of("named", "yarn"));
+                MappingUtil.readV1RemoteJar(url, visitor1);
+            }
+        }
 
         MappingUtil.readV1RemoteJar(url, visitor);
 

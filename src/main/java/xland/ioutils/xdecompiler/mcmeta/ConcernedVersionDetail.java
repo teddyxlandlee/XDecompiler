@@ -18,6 +18,7 @@ package xland.ioutils.xdecompiler.mcmeta;
 import mjson.Json;
 import xland.ioutils.xdecompiler.mcmeta.libraries.Library;
 import xland.ioutils.xdecompiler.mcmeta.libraries.MavenArtifact;
+import xland.ioutils.xdecompiler.util.ConcurrentUtils;
 import xland.ioutils.xdecompiler.util.PublicProperties;
 
 import java.net.MalformedURLException;
@@ -27,8 +28,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 public record ConcernedVersionDetail(RemoteFile clientJar, RemoteFile serverJar,
                                      RemoteFile clientMappings, RemoteFile serverMappings,
@@ -57,15 +56,10 @@ public record ConcernedVersionDetail(RemoteFile clientJar, RemoteFile serverJar,
 
     public Collection<Path> downloadLibrariesAsync(Path repo) {
         Collection<Path> paths = new CopyOnWriteArrayList<>();
-        ExecutorService service = Executors.newFixedThreadPool(PublicProperties.downloadThreads());
-
-        CompletableFuture.allOf(libraries().stream()
+        ConcurrentUtils.run(PublicProperties.downloadThreads(), service -> libraries().stream()
                 .map(lib -> CompletableFuture.supplyAsync(() -> lib.getOrDownload(repo), service))
                 .map(c -> c.thenAccept(paths::add))
-                .toArray(CompletableFuture[]::new)
-        ).join();
-
-        service.shutdown();
+        );
         return paths;
     }
 

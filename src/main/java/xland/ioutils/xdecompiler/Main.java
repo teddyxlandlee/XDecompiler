@@ -39,8 +39,6 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.function.Function;
 import java.util.jar.JarFile;
 import java.util.stream.Collectors;
@@ -89,6 +87,13 @@ public record Main(String version, DecompilerProvider decompilerProvider,
         }
 
         LOGGER.info("\tDumping resources...");
+        LOGGER.debug("Resources zip at {}", resources);
+        xland.ioutils.xdecompiler.util.DebugUtils.log(2, l -> {
+            l.info("Deleting old files due to debug flag 2");
+            try {
+                xland.ioutils.xdecompiler.util.FileUtils.deleteRecursively(outputRes(), true);
+            } catch (IOException e) { l.warn("\tFailed to delete"); }
+        });
         FileUtils.extractZip(resources, outputRes());
 
         // 3. libraries
@@ -104,35 +109,51 @@ public record Main(String version, DecompilerProvider decompilerProvider,
                 .toList();
         LOGGER.info("\tTarget namespaces to remap: {}", mappingsToRemap.stream().map(MappingProvider::destNamespace).toList());
 
+        xland.ioutils.xdecompiler.util.DebugUtils.log(5, l -> {
+            try {
+                Path path = TempDirs.get().createFile();
+                l.info("Dumping mapping tree to {} due to debug flag 5", path);
+                try (var v = new net.fabricmc.mappingio.format.Tiny1Writer(Files.newBufferedWriter(path))) {
+                    mapping.accept(v);
+                }
+            } catch (IOException e) {
+                l.error("Failed to dump mapping tree", e);
+            }
+        });
+
         // 5. remap & decompile
         LOGGER.info("5. Starting remap & decompile...");
-        ExecutorService executors = Executors.newFixedThreadPool(PublicProperties.remapThreads());
-        CompletableFuture.allOf(mappingsToRemap.stream()
+        ConcurrentUtils.run(PublicProperties.remapThreads(), executors -> mappingsToRemap.stream()
                 .map(provider -> CompletableFuture.supplyAsync(() -> {
                     // remap
                     LOGGER.info("...Remapping {}", provider.id());
                     try {
                         final Path path = TempDirs.get().createFile();
+                        Files.deleteIfExists(path); // to avoid ProviderNotFoundException
                         remap(mergedJar, libraries, path, mapping, provider.destNamespace());
                         return Map.entry(path, provider.id());
                     } catch (IOException e) {
-                        sneakyThrow(e);
+                        CommonUtils.sneakyThrow(e);
                         throw new AssertionError(); // unreachable
                     }
                 }, executors))
                 .map(cf -> cf.thenAcceptAsync(pair -> {
                     // decompile
                     LOGGER.info("...Decompiling {}", pair.getValue());
-                    decompilerProvider().decompile(pair.getKey(), libraries, output().resolve(pair.getValue()));
+                    final Path pathOut = output().resolve(pair.getValue());
+                    try {
+                        Files.createDirectories(pathOut);
+                    } catch (IOException e) {
+                        CommonUtils.sneakyThrow(e);
+                    }
+                    decompilerProvider().decompile(pair.getKey(), libraries, pathOut);
                 }, executors))
-                .toArray(CompletableFuture[]::new)
-        ).join();
-        executors.shutdown();
+        );
     }
 
-    private static void remap(Path input, Collection<Path> libraries, Path output,
+    public static void remap(Path input, Collection<Path> libraries, Path output,
                               MappingTreeView mapping, String targetNs) throws IOException {
-        final TinyRemapper r = RemapUtil.getTinyRemapper(mapping, "official", targetNs, builder -> {});
+        final TinyRemapper r = RemapUtil.getTinyRemapper(mapping, MappingProvider.SOURCE_NAMESPACE, targetNs, builder -> {});
 
         r.readInputs(input);
         r.readClassPath(libraries.toArray(new Path[0]));
@@ -173,12 +194,16 @@ public record Main(String version, DecompilerProvider decompilerProvider,
                 .defaultsTo(Path.of("out", "resources"));
         var help = parser.accepts("help").forHelp();
         if (args.length == 0) {
-            try { parser.printHelpOn(System.out); } catch (IOException e) { sneakyThrow(e); } return ;
+            try { parser.printHelpOn(System.out); } catch (IOException e) {
+                CommonUtils.sneakyThrow(e);
+            } return ;
         }
 
         final OptionSet parsed = parser.parse(args);
         if (parsed.has(help)) {
-            try { parser.printHelpOn(System.out); } catch (IOException e) { sneakyThrow(e); } return ;
+            try { parser.printHelpOn(System.out); } catch (IOException e) {
+                CommonUtils.sneakyThrow(e);
+            } return ;
         }
 
         final String version = parsed.valueOf(versionId);
@@ -212,12 +237,7 @@ public record Main(String version, DecompilerProvider decompilerProvider,
         try {
             new Main(version, decompilerProvider, codeOut, resOut, libCache, mappingProviders, mappingArgs).runProgram();
         } catch (Exception e) {
-            sneakyThrow(e);
+            CommonUtils.sneakyThrow(e);
         }
-    }
-
-    @SuppressWarnings("unchecked")
-    private static <T extends Throwable> void sneakyThrow(Throwable t) throws T {
-        throw (T) t;
     }
 }

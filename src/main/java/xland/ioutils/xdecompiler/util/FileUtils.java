@@ -16,6 +16,7 @@
 package xland.ioutils.xdecompiler.util;
 
 import mjson.Json;
+import org.slf4j.Logger;
 
 import java.io.IOException;
 import java.nio.file.FileVisitResult;
@@ -27,6 +28,8 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
 public class FileUtils {
+    private static final Logger LOGGER = LogUtils.getLogger();
+
     public static void deleteRecursively(Path root, boolean retainRoot) throws IOException {
         Files.walkFileTree(root, new SimpleFileVisitor<>() {
             @Override
@@ -53,6 +56,7 @@ public class FileUtils {
         try (ZipInputStream zis = new ZipInputStream(Files.newInputStream(archive))) {
             ZipEntry entry;
             while ((entry = zis.getNextEntry()) != null) {
+                //LOGGER.debug("Entry: {}", entry);
                 if (entry.isDirectory()) {
                     Files.createDirectories(outDir.resolve(entry.getName()));
                     continue;

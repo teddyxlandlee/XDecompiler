@@ -19,8 +19,6 @@ import net.fabricmc.mappingio.tree.MappingTreeView;
 import net.fabricmc.tinyremapper.IMappingProvider;
 import net.fabricmc.tinyremapper.TinyRemapper;
 
-import java.nio.file.Path;
-import java.util.Collection;
 import java.util.function.Consumer;
 import java.util.regex.Pattern;
 
@@ -44,12 +42,16 @@ public class RemapUtil {
                 acceptor.acceptClass(className, dstName);
 
                 for (MappingTreeView.FieldMappingView field : classDef.getFields()) {
-                    acceptor.acceptField(memberOf(className, field.getName(fromId), field.getDesc(fromId)), field.getName(toId));
+                    final String s = field.getName(toId);
+                    if (s != null)
+                        acceptor.acceptField(memberOf(className, field.getName(fromId), field.getDesc(fromId)), s);
                 }
 
                 for (MappingTreeView.MethodMappingView method : classDef.getMethods()) {
                     IMappingProvider.Member methodIdentifier = memberOf(className, method.getName(fromId), method.getDesc(fromId));
-                    acceptor.acceptMethod(methodIdentifier, method.getName(toId));
+                    final String s = method.getName(toId);
+                    if (s != null)
+                        acceptor.acceptMethod(methodIdentifier, s);
 
                     if (remapLocalVariables) {
                         for (MappingTreeView.MethodArgMappingView parameter : method.getArgs()) {
@@ -63,9 +65,11 @@ public class RemapUtil {
                         }
 
                         for (MappingTreeView.MethodVarMappingView localVariable : method.getVars()) {
-                            acceptor.acceptMethodVar(methodIdentifier, localVariable.getLvIndex(),
+                            final String s1 = localVariable.getName(toId);
+                            if (s1 != null)
+                                acceptor.acceptMethodVar(methodIdentifier, localVariable.getLvIndex(),
                                     localVariable.getStartOpIdx(), localVariable.getLvtRowIndex(),
-                                    localVariable.getName(toId));
+                                    s1);
                         }
                     }
                 }
@@ -88,7 +92,9 @@ public class RemapUtil {
                 .renameInvalidLocals(true)
                 .rebuildSourceFilenames(true)
                 .invalidLvNamePattern(MC_LV_PATTERN)
-                .inferNameFromSameLvIndex(true);
+                .inferNameFromSameLvIndex(true)
+                .resolveMissing(true)
+                ;
 
         builderConsumer.accept(builder);
         return builder.build();

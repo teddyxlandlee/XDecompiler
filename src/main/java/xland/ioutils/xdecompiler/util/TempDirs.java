@@ -35,7 +35,7 @@ public class TempDirs implements Closeable {
     }
 
     public Path createFile() throws IOException {
-        return createFile("tmp");
+        return createFile(".tmp");
     }
 
     public Path createFile(String suffix) throws IOException {
@@ -43,7 +43,7 @@ public class TempDirs implements Closeable {
     }
 
     public File createFileDefaultFs() throws IOException {
-        return createFileDefaultFs("tmp");
+        return createFileDefaultFs(".tmp");
     }
 
     public File createFileDefaultFs(String suffix) throws IOException {
@@ -57,8 +57,19 @@ public class TempDirs implements Closeable {
     public static TempDirs get() {
         if (dirs != null) return dirs;
         synchronized (TempDirs.class) {
-            dirs = create();
+            String tempDirsOverride = System.getProperty("xdecompiler.internal.tempdirs.override");
+            if (tempDirsOverride != null)
+                dirs = new TempDirs(Path.of(tempDirsOverride));
+            else
+                dirs = create();
             Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+                var flagQuit = new java.util.concurrent.atomic.AtomicBoolean();
+                DebugUtils.log(1, l -> {
+                    l.info("TempDirs at {} will not be cleaned up due to debug flag 1", dirs.baseDir);
+                    flagQuit.set(true);
+                });
+                if (flagQuit.get()) return;
+
                 try {
                     LOGGER.info("Cleaning up TempDirs...");
                     dirs.close();
@@ -75,7 +86,8 @@ public class TempDirs implements Closeable {
         try {
             return Files.createTempDirectory(UUID.randomUUID().toString());
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            CommonUtils.sneakyThrow(e);
+            throw new AssertionError();
         }
     }
 

@@ -61,15 +61,35 @@ public record RemoteFile(URL url, String hash, @Nullable Long size, Supplier<Mes
 
     public InputStream openFilteredInputStream() throws IOException {
         DigestInputStream is = new DigestInputStream(url.openStream(), mdFactory().get());
-        return new FilterInputStream(is) {
+        if (!xland.ioutils.xdecompiler.util.DebugUtils.flagged(0))
+            return new FilterInputStream(is) {
+                @Override
+                public void close() throws IOException {
+                    byte[] b;
+                    if (HashingUtil.isSame(hash(), (b = is.getMessageDigest().digest())))
+                        return;
+                    throw new IOException("Hash mismatched", HashMismatchException.of(url.toString(), hash(), HashingUtil.stringify(b)));
+                }
+            };  // don't check size, only hash
+        else
+            return new FilterInputStream(is) {
             long bytes;
 
             @Override
             public void close() throws IOException {
                 super.close();
-                if ((size == null || size == bytes) && HashingUtil.isSame(hash(), is.getMessageDigest().digest()))
+                byte[] h = null;
+                if ((size == null || size == bytes) && HashingUtil.isSame(hash(), (h = is.getMessageDigest().digest())))
                     return;
-                throw new IOException(new HashMismatchException("Size or hash mismatched: " + url));
+                final StringBuilder sb = new StringBuilder();
+                if (h == null) {
+                    h = is.getMessageDigest().digest();
+                    sb.append("Expected size (").append(size).append(") != actual size (").append(bytes).append("). ");
+                }
+                if (!HashingUtil.isSame(hash(), h))
+                    sb.append("Expected hash (").append(hash()).append(") != actual hash (").append(HashingUtil.stringify(h)).append("). ");
+
+                throw new IOException("Size or hash mismatched", new HashMismatchException(sb.toString()));
             }
 
             @Override
