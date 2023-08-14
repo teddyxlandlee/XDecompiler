@@ -39,6 +39,8 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.function.Function;
 import java.util.jar.JarFile;
 import java.util.stream.Collectors;
@@ -123,33 +125,41 @@ public record Main(String version, DecompilerProvider decompilerProvider,
 
         // 5. remap & decompile
         LOGGER.info("5. Starting remap & decompile...");
-        ConcurrentUtils.run(PublicProperties.remapThreads(), executors -> mappingsToRemap.stream()
-                .map(provider -> CompletableFuture.supplyAsync(() -> {
-                    // remap
-                    LOGGER.info("...Remapping {}", provider.id());
-                    try {
-                        final Path path = TempDirs.get().createFile();
-                        Files.deleteIfExists(path); // to avoid ProviderNotFoundException
-                        remap(mergedJar, libraries, path, mapping, provider.destNamespace());
-                        return Map.entry(path, provider.id());
-                    } catch (IOException e) {
-                        CommonUtils.sneakyThrow(e);
-                        throw new AssertionError(); // unreachable
-                    }
-                }, executors))
-                .map(cf -> cf.thenAcceptAsync(pair -> {
-                    // decompile
-                    LOGGER.info("...Decompiling {}", pair.getValue());
-                    LOGGER.debug("\tClasses of {} is from {}", pair.getValue(), pair.getKey());
-                    final Path pathOut = output().resolve(pair.getValue());
-                    try {
-                        Files.createDirectories(pathOut);
-                    } catch (IOException e) {
-                        CommonUtils.sneakyThrow(e);
-                    }
-                    decompilerProvider().decompile(pair.getKey(), libraries, pathOut);
-                }, executors))
-        );
+        ExecutorService singleThreadExecutor = Executors.newSingleThreadExecutor();
+        try {
+            ConcurrentUtils.run(PublicProperties.remapThreads(), executors -> mappingsToRemap.stream()
+                    .map(provider -> CompletableFuture.supplyAsync(() -> {
+                        // remap
+                        final String providerId = provider.id();
+                        LOGGER.info("...Remapping {}", providerId);
+                        try {
+                            final long t0 = System.nanoTime();
+                            final Path path = TempDirs.get().createFile();
+                            Files.deleteIfExists(path); // to avoid ProviderNotFoundException
+                            remap(mergedJar, libraries, path, mapping, provider.destNamespace());
+                            LOGGER.info("...Remapped {} in {}", providerId, TimeUtils.timeFormat(System.nanoTime() - t0));
+                            return Map.entry(path, providerId);
+                        } catch (IOException e) {
+                            CommonUtils.sneakyThrow(e);
+                            throw new AssertionError(); // unreachable
+                        }
+                    }, executors))
+                    .map(cf -> cf.thenAcceptAsync(pair -> {
+                        // decompile
+                        LOGGER.info("...Decompiling {}", pair.getValue());
+                        LOGGER.debug("\tClasses of {} is from {}", pair.getValue(), pair.getKey());
+                        final Path pathOut = output().resolve(pair.getValue());
+                        try {
+                            Files.createDirectories(pathOut);
+                        } catch (IOException e) {
+                            CommonUtils.sneakyThrow(e);
+                        }
+                        decompilerProvider().decompile(pair.getKey(), libraries, pathOut);
+                    }, singleThreadExecutor))
+            );
+        } finally {
+            singleThreadExecutor.shutdown();
+        }
     }
 
     public static void remap(Path input, Collection<Path> libraries, Path output,
@@ -239,7 +249,9 @@ public record Main(String version, DecompilerProvider decompilerProvider,
         Path resOut = parsed.valueOf(resOut0);
 
         try {
+            final long t0 = System.nanoTime();
             new Main(version, decompilerProvider, codeOut, resOut, libCache, mappingProviders, mappingArgs).runProgram();
+            LOGGER.info("Done! {}", TimeUtils.timeFormat(System.nanoTime() - t0));
         } catch (Exception e) {
             CommonUtils.sneakyThrow(e);
         }

@@ -38,14 +38,17 @@ public class ConcurrentUtils {
         final ExecutorService service = Executors.newFixedThreadPool(threadCount);
         ThrowableHolder throwableHolder = new ThrowableHolder();
 
-        CompletableFuture.allOf(streamSupplier.apply(service)
-                .map(f -> f.exceptionally(t -> {
-                    throwableHolder.addSuppressed(t);
-                    return null;
-                }))
-                .toArray(CompletableFuture[]::new)
-        ).join();
-        service.shutdown();
+        try {
+            CompletableFuture.allOf(streamSupplier.apply(service)
+                    .map(f -> f.exceptionally(t -> {
+                        throwableHolder.addSuppressed(t);
+                        return null;
+                    }))
+                    .toArray(CompletableFuture[]::new)
+            ).join();
+        } finally {
+            service.shutdown();
+        }
 
         if (throwableHolder.t0 == null) return;
         throw (T) throwableHolder.t0;

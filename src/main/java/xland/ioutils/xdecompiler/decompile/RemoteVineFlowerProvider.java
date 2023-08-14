@@ -21,10 +21,7 @@ import org.slf4j.Logger;
 import xland.ioutils.xdecompiler.mcmeta.HashMismatchException;
 import xland.ioutils.xdecompiler.mcmeta.HashingUtil;
 import xland.ioutils.xdecompiler.mcmeta.RemoteFile;
-import xland.ioutils.xdecompiler.util.CommonUtils;
-import xland.ioutils.xdecompiler.util.LogUtils;
-import xland.ioutils.xdecompiler.util.PublicProperties;
-import xland.ioutils.xdecompiler.util.TempDirs;
+import xland.ioutils.xdecompiler.util.*;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -73,15 +70,21 @@ public class RemoteVineFlowerProvider implements DecompilerProvider {
         args.add(String.valueOf(dirOut));
         
         Path logFile = null;
+        OutputStream alt = null;
         final String prop = PublicProperties.vineFlowerLogDir();
-        if (!prop.isEmpty()) {
-            logFile = Path.of(prop).resolve(dirOut.getFileName() + "-" 
-                    + UUID.randomUUID().toString().substring(24) + ".txt.gz");
-            LOGGER.info("Decompile log for " + dirOut + " will be dumped into " + logFile);
+        switch (prop) {
+            case "", "/dev/null" -> {}
+            case "/dev/stdout" -> alt = System.out;
+            case "/dev/stderr" -> alt = System.err;
+            default -> {
+                logFile = Path.of(prop).resolve(dirOut.getFileName() + "-"
+                        + UUID.randomUUID().toString().substring(24) + ".txt.gz");
+                LOGGER.info("Decompile log for " + dirOut + " will be dumped into " + logFile);
+            }
         }
 
         VineFlowerInstance vf = VineFlowerInstance.getOrCreate();
-        vf.execute(logFile, args.toArray(new String[0]));
+        vf.execute(logFile, alt, args.toArray(new String[0]));
     }
 }
 
@@ -89,7 +92,7 @@ record VineFlowerInstance(ClassLoader cl, String mainClass) {
     private static final AtomicInteger RUNNER_ID = new AtomicInteger(1);
     private static final String HOLDER_CLASS = "xland/ioutils/xdecompiler/decompile/impl/vineflower/LoggerHolder";
 
-    void execute(@Nullable Path loggingFile, String... args) {
+    void execute(@Nullable Path loggingFile, @Nullable OutputStream alt, String... args) {
         final ClassLoader cl = cl();
         Thread thread = new Thread(() -> {
             try {
@@ -99,18 +102,33 @@ record VineFlowerInstance(ClassLoader cl, String mainClass) {
                 @SuppressWarnings("unchecked")
                 final ThreadLocal<PrintStream> threadLocal = (ThreadLocal<PrintStream>) handle.invoke();
                 final PrintStream ps;
-                if (loggingFile == null)
-                    ps = (new PrintStream(OutputStream.nullOutputStream()));
-                else {
+                if (loggingFile == null) {
+                    if (alt == null) {
+                        ps = (new PrintStream(OutputStream.nullOutputStream()));
+                    } else {
+                        ps = new PrintStream(alt) {
+                            private static final ThreadLocal<String> thrNamePrefix =
+                                    ThreadLocal.withInitial(() -> '[' + Thread.currentThread().getName() + "] ");
+
+                            @Override
+                            public synchronized void println(@Nullable String x) {
+                                super.print(thrNamePrefix.get());
+                                super.println(x);
+                            }
+                        };
+                    }
+                } else {
                     Files.createDirectories(loggingFile.getParent());
                     ps = (new PrintStream(new GZIPOutputStream(Files.newOutputStream(loggingFile))));
                 }
                 threadLocal.set(ps);
 
+                final long t0 = System.nanoTime();
                 try (ps) {
                     c = Class.forName(mainClass(), true, cl);
                     handle = lookup.findStatic(c, "main", MethodType.methodType(void.class, String[].class)).asFixedArity();
                     handle.invoke((Object) args);
+                    LogUtils.getLogger().info("...Decompile finished in {}}.", TimeUtils.timeFormat(System.nanoTime() - t0));
                 } finally {
                     threadLocal.remove();
                 }
