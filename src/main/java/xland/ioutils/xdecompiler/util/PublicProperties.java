@@ -29,7 +29,7 @@ public class PublicProperties {
     }
 
     public static int remapThreads() {
-        return Integer.getInteger("xdecompiler.threads.remap", 6);
+        return Integer.getInteger("xdecompiler.threads.remap", 1);
     }
 
     public static String vineFlowerUrl() {

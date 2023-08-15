@@ -221,6 +221,7 @@ public record Main(String version, DecompilerProvider decompilerProvider,
         }
 
         final String version = parsed.valueOf(versionId);
+        Objects.requireNonNull(version, "Version must be specified");
 
         DecompilerProvider decompilerProvider = ServiceProviders.identified(DecompilerProvider.class).get(parsed.valueOf(decompiler));
         if (decompilerProvider == null) {
@@ -243,6 +244,10 @@ public record Main(String version, DecompilerProvider decompilerProvider,
         }
         mappingProviders = mappingArgs.keySet().stream()
                 .collect(Collectors.toMap(Function.identity(), mappingProviders::get));
+        if (mappingProviders.isEmpty()) {
+            LOGGER.error("No available mapping provider");
+            return ;
+        }
 
         Path libCache = parsed.valueOf(libCache0);
         Path codeOut = parsed.valueOf(codeOut0);

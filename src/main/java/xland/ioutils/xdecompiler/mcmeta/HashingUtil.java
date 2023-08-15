@@ -22,6 +22,7 @@ import java.nio.file.Path;
 import java.security.DigestOutputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.function.Supplier;
 
 public class HashingUtil {
     private static final String HEXMAP = "0123456789abcdef";
@@ -68,13 +69,16 @@ public class HashingUtil {
     }
 
     public static boolean matchesFileSha1(Path file, String sha1) throws IOException {
+        return matchesFileHash(file, sha1, HashingUtil::sha1);
+    }
+
+    public static boolean matchesFileHash(Path file, String hash, Supplier<MessageDigest> mdFactory) throws IOException {
         if (!Files.exists(file)) return false;
 
-        MessageDigest md = sha1();
-//        byte[] b = new byte[4096];
+        MessageDigest md = mdFactory.get();
         try (var in = Files.newInputStream(file)) {
             in.transferTo(new DigestOutputStream(OutputStream.nullOutputStream(), md));
         }
-        return isSame(sha1, md.digest());
+        return isSame(hash, md.digest());
     }
 }

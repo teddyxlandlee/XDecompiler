@@ -128,7 +128,7 @@ record VineFlowerInstance(ClassLoader cl, String mainClass) {
                     c = Class.forName(mainClass(), true, cl);
                     handle = lookup.findStatic(c, "main", MethodType.methodType(void.class, String[].class)).asFixedArity();
                     handle.invoke((Object) args);
-                    LogUtils.getLogger().info("...Decompile finished in {}}.", TimeUtils.timeFormat(System.nanoTime() - t0));
+                    LogUtils.getLogger().info("...Decompile finished in {}.", TimeUtils.timeFormat(System.nanoTime() - t0));
                 } finally {
                     threadLocal.remove();
                 }

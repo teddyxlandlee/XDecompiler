@@ -40,6 +40,10 @@ public record RemoteFile(URL url, String hash, @Nullable Long size, Supplier<Mes
         return new RemoteFile(new URL(url), sha1, size, HashingUtil::sha1);
     }
 
+    public boolean matchHash(Path path) throws IOException {
+        return HashingUtil.matchesFileHash(path, hash(), mdFactory());
+    }
+
     public void download(OutputStream output) throws IOException, HashMismatchException {
         try (InputStream is = url.openStream();
              DigestOutputStream dos = new DigestOutputStream(output, mdFactory().get())) {
