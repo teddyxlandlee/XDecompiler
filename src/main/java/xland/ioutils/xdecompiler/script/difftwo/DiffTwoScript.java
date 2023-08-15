@@ -25,6 +25,7 @@ import xland.ioutils.xdecompiler.mcmeta.VersionManifest;
 import xland.ioutils.xdecompiler.script.Script;
 import xland.ioutils.xdecompiler.util.CommonUtils;
 import xland.ioutils.xdecompiler.util.LogUtils;
+import xland.ioutils.xdecompiler.util.TimeUtils;
 
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
@@ -42,12 +43,12 @@ public class DiffTwoScript extends Script {
     private final Path dir1, dir2;
     private final Path output;
 
-    public DiffTwoScript(String ver1, String ver2, Path baseDir, Path output) {
+    public DiffTwoScript(String ver1, String ver2, Path baseDir, Path out1, Path out2, Path output) {
         this.ver1 = ver1;
         this.ver2 = ver2;
         this.baseDir = baseDir;
-        dir1 = baseDir.resolve("out1");
-        dir2 = baseDir.resolve("out2");
+        dir1 = out1;
+        dir2 = out2;
         this.output = output;
     }
 
@@ -71,6 +72,7 @@ public class DiffTwoScript extends Script {
     @NotNull
     private static Thread getThread(URLClassLoader cl, String[] args) {
         Thread thread = new Thread(() -> {
+            long t0 = System.nanoTime();
             var lookup = MethodHandles.lookup();
             try {
                 Class<?> c = Class.forName("codechicken.diffpatch.DiffPatch", true, cl);
@@ -81,6 +83,7 @@ public class DiffTwoScript extends Script {
             } catch (Throwable t) {
                 CommonUtils.sneakyThrow(t);
             }
+            LOGGER.info("Diff completed in {}", TimeUtils.timeFormat(System.nanoTime() - t0));
         }, "DiffTwoScript-DiffPatch");
         thread.setContextClassLoader(cl);
         return thread;
@@ -185,7 +188,7 @@ public class DiffTwoScript extends Script {
 
             if (hasExc1 && hasExc2) {
                 // Don't need to run the toolchain
-                return new DiffTwoScript(ver1, ver2, workingDir, output);
+                return new DiffTwoScript(ver1, ver2, workingDir, workingDir.resolve(out1), workingDir.resolve(out2), output);
             }
 
             List<String> basicArgs = new ArrayList<>();
@@ -218,7 +221,7 @@ public class DiffTwoScript extends Script {
             }
 
             LOGGER.info("Running diff script");
-            return new DiffTwoScript(ver1, ver2, workingDir, output);
+            return new DiffTwoScript(ver1, ver2, workingDir, workingDir.resolve(out1), workingDir.resolve(out2), output);
         });
     }
 
