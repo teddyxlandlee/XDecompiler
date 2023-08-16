@@ -25,6 +25,7 @@ import xland.ioutils.xdecompiler.mcmeta.VersionManifest;
 import xland.ioutils.xdecompiler.script.Script;
 import xland.ioutils.xdecompiler.util.CommonUtils;
 import xland.ioutils.xdecompiler.util.LogUtils;
+import xland.ioutils.xdecompiler.util.PublicProperties;
 import xland.ioutils.xdecompiler.util.TimeUtils;
 
 import java.io.IOException;
@@ -196,6 +197,7 @@ public class DiffTwoScript extends Script {
             mappings.forEach(s -> Collections.addAll(basicArgs, "--mappings", s));
             if (!workingDir.toAbsolutePath().equals(thisDir.toAbsolutePath())) {
                 Collections.addAll(basicArgs, "--lib-cache", workingDir.resolve("libraries").toString());
+                System.setProperty("xdecompiler.vineflower.log.dir", workingDir.resolve(PublicProperties.vineFlowerLogDir()).toString());
             }
 
             List<String> ver1Args = new ArrayList<>(basicArgs), ver2Args = new ArrayList<>(basicArgs);
