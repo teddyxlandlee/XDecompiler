@@ -1,0 +1,28 @@
+{
+	"_due": "2023-08-17T09:12:00Z",
+	"main": {
+		"from": "1.14.4"
+	},
+	"branches": {
+		"AprilFools/2020": {
+			"parent": "main",
+			"from": "20w13b",
+			"versions": ["20w14infinite"]
+		},
+		"UnorderedFix/1.16.5": {
+			"parent": "main",
+			"from": "1.16.4",
+			"versions": ["1.16.5-rc1", "1.16.5"]
+		},
+		"AprilFools/2022": {
+			"parent": "main",
+			"from": "1.18.2",
+			"versions": ["22w13oneblockatatime"]
+		},
+		"AprilFools/2023": {
+			"parent": "main",
+			"from": "23w13a",
+			"versions": ["23w13a_or_b"]
+		}
+	}
+}

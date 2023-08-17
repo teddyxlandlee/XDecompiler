@@ -16,6 +16,7 @@
 package xland.ioutils.xdecompiler.mcmeta;
 
 import mjson.Json;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import xland.ioutils.xdecompiler.util.FileUtils;
 import xland.ioutils.xdecompiler.util.LogUtils;
@@ -28,9 +29,9 @@ import java.net.URL;
 import java.nio.file.Path;
 import java.time.chrono.ChronoZonedDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 public final class VersionManifest {
     private static final Logger LOGGER = LogUtils.getLogger();
@@ -39,7 +40,7 @@ public final class VersionManifest {
     private final String latestRelease;
     private final String latestSnapshot;
     private final List<VersionMeta> versions;
-    private volatile transient List<String> versionNameCache;
+    private volatile transient Map<String, VersionMeta> versionNameCache;
     private final transient Object versionNameCacheLock = new Object();
 
     public VersionManifest(String latestRelease, String latestSnapshot, List<VersionMeta> versions) {
@@ -85,20 +86,21 @@ public final class VersionManifest {
     }
 
     public VersionMeta getVersion(String id) {
-        final List<String> cache = versionNameCache();
-        final int i = cache.indexOf(id);
-        if (i < 0) return null;
-        return versions().get(i);
+        return versionNameCache().get(id);
     }
 
-    List<String> versionNameCache() {
+    Map<String, VersionMeta> versionNameCache() {
         if (versionNameCache == null) {
             synchronized (versionNameCacheLock) {
                 if (versionNameCache == null)
-                    versionNameCache = versions().stream().map(VersionMeta::id).toList();
+                    versionNameCache = versions().stream().collect(Collectors.toMap(VersionMeta::id, Function.identity()));
             }
         }
         return versionNameCache;
+    }
+
+    public Comparator<String> versionComparator() {
+        return Comparator.comparing(this::getVersion);
     }
 
     @Override
@@ -125,7 +127,7 @@ public final class VersionManifest {
     }
 
 
-    public static final class VersionMeta {
+    public static final class VersionMeta implements Comparable<VersionMeta> {
         private final String id;
         private final boolean isSnapshot;
         private final boolean isLegacy;
@@ -217,6 +219,12 @@ public final class VersionManifest {
 
         public ChronoZonedDateTime<?> releaseTime() {
             return releaseTime;
+        }
+
+        @Override
+        public int compareTo(@NotNull VersionManifest.VersionMeta o) {
+            if (this == o) return 0;
+            return releaseTime().compareTo(o.releaseTime());
         }
 
         @Override

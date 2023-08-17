@@ -15,11 +15,10 @@
  */
 package xland.ioutils.xdecompiler.util;
 
+import java.text.StringCharacterIterator;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 
 public class TimeUtils {
     private static List<String> timeFormat0(Duration duration) {
@@ -59,8 +58,54 @@ public class TimeUtils {
         Collections.reverse(l);
         return String.join(" ", l);
     }
+
+    private static final Map<String, Long> DURATION_UNITS = Map.of(
+            "ms", 1L,
+            "s", 1000L,
+            "sec", 1000L,
+            "m", 1000L * 60,
+            "mi", 1000L * 60,
+            "min", 1000L * 60,
+            "h", 1000L * 3600,
+            "hr", 1000L * 3600,
+            "d", 1000L * 86400
+    );
     
-    public static Duration fromString(CharSequence s) {
-        return Duration.parse(s);
+    public static Duration fromString(String s) {
+        StringCharacterIterator itr = new StringCharacterIterator(s);
+        List<Map.Entry<String, Integer>> list = new ArrayList<>();
+
+        char c;
+        int start = 0;
+        Integer integer = null;
+        while (true) {
+            c = itr.next();
+            if ("0123456789".indexOf(c) >= 0) {
+                if (integer != null) {  // !wasNumber
+                    // stop suffixes
+                    list.add(Map.entry(s.substring(start, (start = itr.getIndex())), integer));
+                    integer = null;
+                }
+            } else if (c == StringCharacterIterator.DONE) {
+                if (integer == null) {  // wasNumber
+                    // treat the number as seconds
+                    list.add(Map.entry("s", Integer.parseInt(s, start, itr.getEndIndex(), 10)));
+                } else {
+                    // treat as normal expressions
+                    list.add(Map.entry(s.substring(start, itr.getEndIndex()), integer));
+                }
+                break;
+            } else {
+                if (integer == null) {  // wasNumber
+                    // stop numbers
+                    integer = Integer.parseInt(s, start, (start = itr.getIndex()), 10);
+                }
+            }
+        }
+
+        return Duration.ofMillis(
+                list.stream().mapToLong(e -> Objects.requireNonNull(DURATION_UNITS.get(e.getKey()), e::getKey) * e.getValue())
+                        .sum()
+        );
     }
 }

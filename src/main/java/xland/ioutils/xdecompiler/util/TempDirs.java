@@ -22,7 +22,6 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.UUID;
 
 public class TempDirs implements Closeable {
     private static final Logger LOGGER = LogUtils.getLogger();
@@ -39,7 +38,7 @@ public class TempDirs implements Closeable {
     }
 
     public Path createFile(String suffix) throws IOException {
-        return Files.createTempFile(baseDir, UUID.randomUUID().toString(), suffix);
+        return Files.createTempFile(baseDir, CommonUtils.newNanoID(), suffix);
     }
 
     public File createFileDefaultFs() throws IOException {
@@ -84,7 +83,7 @@ public class TempDirs implements Closeable {
 
     private static Path newBaseDir() {
         try {
-            return Files.createTempDirectory(UUID.randomUUID().toString());
+            return Files.createTempDirectory(CommonUtils.newNanoID());
         } catch (IOException e) {
             CommonUtils.sneakyThrow(e);
             throw new AssertionError();

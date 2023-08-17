@@ -17,6 +17,7 @@ package xland.ioutils.xdecompiler.util;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.random.RandomGenerator;
 
 public class CommonUtils {
     public static List<String> mergePreserveOrder(List<String> first, List<String> second) {
@@ -53,5 +54,20 @@ public class CommonUtils {
     @SuppressWarnings("unchecked")
     private static <T extends Throwable> void sneakyThrow0(Throwable t) throws T {
         throw (T) t;
+    }
+
+    private static final char[] CHAR_POOL_NANO_ID = "0123456789abcdefghijklmnopqrstuvwxyz".toCharArray();
+    private static final RandomGenerator RANDOM_NANO_ID = RandomGenerator.of("SecureRandom");
+    private static final int NANO_ID_DEFAULT_LEN = 16;
+
+    public static String newNanoID(int len) {
+        return RANDOM_NANO_ID.ints(len, 0, CHAR_POOL_NANO_ID.length)
+                .map(i -> CHAR_POOL_NANO_ID[i])
+                .collect(StringBuilder::new, (sb, i) -> sb.append((char)i), StringBuilder::append)
+                .toString();
+    }
+
+    public static String newNanoID() {
+        return newNanoID(NANO_ID_DEFAULT_LEN);
     }
 }

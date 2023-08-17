@@ -17,6 +17,7 @@ package xland.ioutils.xdecompiler.script;
 
 import joptsimple.OptionParser;
 import xland.ioutils.xdecompiler.script.difftwo.DiffTwoScript;
+import xland.ioutils.xdecompiler.script.gitrepo.GitRepoScript;
 import xland.ioutils.xdecompiler.util.CommonUtils;
 
 import java.lang.invoke.MethodHandles;
@@ -48,6 +49,7 @@ public abstract class Script {
     }
 
     private static final Map<String, Class<? extends Script>> SCRIPTS = Map.of(
+            "gitrepo", GitRepoScript.class,
             "difftwo", DiffTwoScript.class
     );
 

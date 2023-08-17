@@ -44,7 +44,7 @@ public class DiffTwoScript extends Script {
     private final Path dir1, dir2;
     private final Path output;
 
-    public DiffTwoScript(String ver1, String ver2, Path baseDir, Path out1, Path out2, Path output) {
+    private DiffTwoScript(String ver1, String ver2, Path baseDir, Path out1, Path out2, Path output) {
         this.ver1 = ver1;
         this.ver2 = ver2;
         this.baseDir = baseDir;
