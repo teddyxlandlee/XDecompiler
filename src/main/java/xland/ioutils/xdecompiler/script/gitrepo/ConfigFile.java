@@ -137,6 +137,7 @@ record ConfigFile(boolean releaseOnly, List<String> mappings, String decompiler,
                     sub = i + 1;
                 } else if (Objects.equals(entry.version(), stopPoint)) {
                     end = i + 1;
+                    break;
                 }
             }
         }
