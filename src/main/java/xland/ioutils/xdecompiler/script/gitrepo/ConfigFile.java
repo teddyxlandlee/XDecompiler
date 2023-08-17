@@ -18,7 +18,9 @@ package xland.ioutils.xdecompiler.script.gitrepo;
 import mjson.Json;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.slf4j.Logger;
 import xland.ioutils.xdecompiler.mcmeta.VersionManifest;
+import xland.ioutils.xdecompiler.util.LogUtils;
 
 import java.util.*;
 import java.util.function.Consumer;
@@ -27,6 +29,8 @@ import java.util.stream.Collectors;
 
 record ConfigFile(boolean releaseOnly, List<String> mappings, String decompiler,
                   RootBranch rootBranch, List<ParentedBranch> subBranches) {
+    private static final Logger LOGGER = LogUtils.getLogger();
+
     static ConfigFile fromJson(Json json) {
         final boolean releaseOnly = json.has("release_only") && json.at("release_only").asBoolean();
         final List<String> mappings = json.has("mappings") ?
@@ -55,6 +59,7 @@ record ConfigFile(boolean releaseOnly, List<String> mappings, String decompiler,
 
         if (!branchNames.containsAll(parentBranches))
             return false;
+        LOGGER.debug("branchNames.containsAll(parentBranches)");
 
         for (ParentedBranch sub : subBranches) {
             if (sub.versions().stream().allMatch(versionsHistory::add)) {
@@ -68,11 +73,13 @@ record ConfigFile(boolean releaseOnly, List<String> mappings, String decompiler,
             }
             return false;
         }
+        LOGGER.debug("SubBranches check passed");
 
         if (versionsHistory.stream().map(v::getVersion)
                 .anyMatch(((Predicate<VersionManifest.VersionMeta>) Objects::isNull)
                         .or(v0 -> !releaseOnly() && v0.isSnapshot())))
             return false;
+        LOGGER.debug("ReleaseOnly check passed");
 
         return versionsHistory.stream()
                 .min(v.versionComparator())
