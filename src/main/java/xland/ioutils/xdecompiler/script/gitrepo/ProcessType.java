@@ -29,8 +29,8 @@ import java.util.stream.Collectors;
 
 enum ProcessType implements Identified {
     INITIALIZE("init", "source ./init.sh", false),
-    CHECKOUT("checkout", /*alias*/ "xdecompiler-checkout", true),
-    RUN_MAIN("run_main", /*alias*/ "xdecompiler-run", true),
+    CHECKOUT("checkout", /*alias*/ "xdecompiler_checkout", true),
+    RUN_MAIN("run_main", /*alias*/ "xdecompiler_run", true),
     POST("post", /*alias*/ "source ./post.sh", false);
 
     private final String id;

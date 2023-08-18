@@ -59,7 +59,6 @@ record ConfigFile(boolean releaseOnly, List<String> mappings, String decompiler,
 
         if (!branchNames.containsAll(parentBranches))
             return false;
-        LOGGER.debug("branchNames.containsAll(parentBranches)");
 
         for (ParentedBranch sub : subBranches) {
             if (sub.versions().stream().allMatch(versionsHistory::add)) {
@@ -73,13 +72,11 @@ record ConfigFile(boolean releaseOnly, List<String> mappings, String decompiler,
             }
             return false;
         }
-        LOGGER.debug("SubBranches check passed");
 
         if (versionsHistory.stream().map(v::getVersion)
                 .anyMatch(((Predicate<VersionManifest.VersionMeta>) Objects::isNull)
-                        .or(v0 -> !releaseOnly() && v0.isSnapshot())))
+                        .or(v0 -> releaseOnly() && v0.isSnapshot())))
             return false;
-        LOGGER.debug("ReleaseOnly check passed");
 
         return versionsHistory.stream()
                 .min(v.versionComparator())
@@ -132,14 +129,16 @@ record ConfigFile(boolean releaseOnly, List<String> mappings, String decompiler,
     List<ProcessEntriesProvider> processes(VersionManifest manifest, List<String> knownCurrentVersions, @Nullable String stopPoint) {
         knownCurrentVersions = knownCurrentVersions.stream().filter(Predicate.not(String::isBlank)).toList();
 
+        LOGGER.debug("StopPoint: {}; Known current versions: {}", stopPoint, knownCurrentVersions);
         final List<ProcessEntriesProvider> list = processes(manifest);
-        if (knownCurrentVersions.isEmpty()) return list;
+        if (knownCurrentVersions.isEmpty() && stopPoint == null) return list;
 
-        int sub = -1;
+        int sub = 0;
         int end = -1;
 
         for (int i = 0; i < list.size(); i++) {
             if (list.get(i) instanceof VersionEntryProvider entry) {
+                if (LOGGER.isDebugEnabled()) LOGGER.debug("entry version: {}", entry.version());
                 if (knownCurrentVersions.contains(entry.version())) {
                     sub = i + 1;
                 } else if (Objects.equals(entry.version(), stopPoint)) {
@@ -152,8 +151,9 @@ record ConfigFile(boolean releaseOnly, List<String> mappings, String decompiler,
         if (stopPoint == null)
             end = list.size();
 
-        if (sub < 0 || end < 0)
-            throw new IllegalStateException("Known current versions are not provided: " + knownCurrentVersions);
+        if (end < 0) {
+            throw new IllegalArgumentException("non-exist stop point: " + stopPoint);
+        }
 
         return list.subList(sub, end);
     }

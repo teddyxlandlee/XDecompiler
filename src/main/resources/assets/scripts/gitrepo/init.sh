@@ -27,7 +27,7 @@
 # Working directory is right here
 # Assume the repos are cloned
 XDECOMPILER_PWD=$(pwd)
-alias xdecompiler-run-raw="java -Dxdecompiler.download.vineflower=$4 -Dxdecompiler.download.mc.manifest=$3"\
+alias xdecompiler_run_raw="java -Dxdecompiler.download.vineflower=$4 -Dxdecompiler.download.mc.manifest=$3"\
 "-jar XDecompiler-fat.jar --decompiler $5"
 XDECOMPILER_TIMEOUT_SOFT=$1
 XDECOMPILER_TIMEOUT_FORCE=$2
@@ -50,7 +50,7 @@ git config user.name 'github-actions[bot]'
 git config user.email 'github-actions[bot]@noreply.github.com'
 cd "${XDECOMPILER_PWD}"
 
-xdecompiler-checkout () {
+xdecompiler_checkout () {
   if "${XDECOMPILER_TERMINATES}" ; then return 1 ; fi
 
   # Arguments:
@@ -63,7 +63,7 @@ xdecompiler-checkout () {
   cd "${XDECOMPILER_PWD}"
 }
 
-xdecompiler-run () {
+xdecompiler_run () {
   if "${XDECOMPILER_TERMINATES}" ; then return 1 ; fi
 
   # Arguments:
@@ -73,14 +73,14 @@ xdecompiler-run () {
   mkdir ${XDECOMPILER_PWD}/out-tmp
   mkdir ${XDECOMPILER_PWD}/out-tmp/src
   mkdir ${XDECOMPILER_PWD}/out-tmp/resources
-  cp -t ${XDECOMPILER_PWD}/out-tmp/src ${XDECOMPILER_PWD}/out/src/.git
-  cp -t ${XDECOMPILER_PWD}/out-tmp/resources ${XDECOMPILER_PWD}/out/resources/.git
+  cp -r -t ${XDECOMPILER_PWD}/out-tmp/src ${XDECOMPILER_PWD}/out/src/.git
+  cp -r -t ${XDECOMPILER_PWD}/out-tmp/resources ${XDECOMPILER_PWD}/out/resources/.git
   #rm -rf ${XDECOMPILER_PWD}/out
 
-  xdecompiler-run0() {
+  xdecompiler_run0() {
     # 1. Run main program, then add version stamp
       cd "${XDECOMPILER_PWD}"
-      xdecompiler-run-raw --output-code "${XDECOMPILER_PWD}/out-tmp/src" \
+      xdecompiler_run_raw --output-code "${XDECOMPILER_PWD}/out-tmp/src" \
                           --output-resources "${XDECOMPILER_PWD}/out-tmp/resources" \
                           "${XDECOMPILER_MAPPINGS[@]}" \
                           "$1"
@@ -99,7 +99,8 @@ xdecompiler-run () {
   }
 
   # Use force termination
-  timeout $(echo "( ${XDECOMPILER_INITIAL_DATE} + ${XDECOMPILER_TIMEOUT_FORCE} - $(date +%s%3N) ) * 0.001" | bc) xdecompiler-run0 "$1"
+  timeout $(echo "( ${XDECOMPILER_INITIAL_DATE} + ${XDECOMPILER_TIMEOUT_FORCE} - $(date +%s%3N) ) * 0.001" | bc) \
+   bash -c 'xdecompiler_run0' "$0" "$1"
   if [ "$?" == 124 ] ; then
     XDECOMPILER_TERMINATES=true
     return 1
