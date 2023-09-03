@@ -21,9 +21,11 @@ import joptsimple.util.PathConverter;
 import joptsimple.util.PathProperties;
 import mjson.Json;
 import org.jetbrains.annotations.Nullable;
+import org.slf4j.Logger;
 import xland.ioutils.xdecompiler.mcmeta.VersionManifest;
 import xland.ioutils.xdecompiler.script.Script;
 import xland.ioutils.xdecompiler.util.CommonUtils;
+import xland.ioutils.xdecompiler.util.LogUtils;
 import xland.ioutils.xdecompiler.util.PublicProperties;
 import xland.ioutils.xdecompiler.util.TimeUtils;
 
@@ -37,6 +39,7 @@ import java.util.*;
 import java.util.function.Supplier;
 
 public class GitRepoScript extends Script {
+    private static final Logger LOGGER = LogUtils.getLogger();
     private final Path scriptOutput;
     private final ConfigFile configFile;
     private final Map<ProcessType, String> overrideCommandsMap;
@@ -60,8 +63,10 @@ public class GitRepoScript extends Script {
         System.setProperty("xdecompiler.download.vineflower", download(Path.of("vineflower.jar"), PublicProperties::vineFlowerUrl));
 
         VersionManifest manifest = VersionManifest.getOrFetch();
+        LOGGER.info("Loaded version manifest");
         final List<ProcessEntriesProvider> entriesProviders;
         if (configFile.validate(manifest)) {
+            LOGGER.info("Config file validated");
             entriesProviders = configFile.processes(manifest, knownCurrentVersions, stopPoint);
         } else throw new IllegalArgumentException("Invalid config file");
 
@@ -77,6 +82,7 @@ public class GitRepoScript extends Script {
         Collections.addAll(initArgs0, initArgs);
         initArgs0.addAll(configFile.mappings());
         initArgs = initArgs0.toArray(new String[0]);
+        LOGGER.info("Ready to write commands");
 
         try (var writer = Files.newBufferedWriter(scriptOutput)) {
             ProcessEntriesProvider.writeCommands(

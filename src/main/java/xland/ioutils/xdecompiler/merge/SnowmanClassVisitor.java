@@ -45,7 +45,7 @@ public class SnowmanClassVisitor extends ClassVisitor {
 			String newName = name;
 			if (name != null && name.startsWith("☃")) {
 				//newName = "lvt" + index;
-				newName = null;
+				newName = "$$" + index;	// to make it invalid
 			}
 			super.visitLocalVariable(newName, descriptor, signature, start, end, index);
 		}

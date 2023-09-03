@@ -16,6 +16,8 @@
 package xland.ioutils.xdecompiler.mcmeta;
 
 import mjson.Json;
+import org.jetbrains.annotations.Contract;
+import org.jetbrains.annotations.Nullable;
 import xland.ioutils.xdecompiler.mcmeta.libraries.Library;
 import xland.ioutils.xdecompiler.mcmeta.libraries.MavenArtifact;
 import xland.ioutils.xdecompiler.util.ConcurrentUtils;
@@ -30,7 +32,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 public record ConcernedVersionDetail(RemoteFile clientJar, RemoteFile serverJar,
-                                     RemoteFile clientMappings, RemoteFile serverMappings,
+                                     @Nullable RemoteFile clientMappings, @Nullable RemoteFile serverMappings,
                                      List<Library> libraries) {
     public static ConcernedVersionDetail fromJson(Json json) {
         Json sub = json.at("downloads");
@@ -47,6 +49,7 @@ public record ConcernedVersionDetail(RemoteFile clientJar, RemoteFile serverJar,
                     MavenArtifact artifact = MavenArtifact.of(lib.at("name").asString());
                     if (isLibraryExcluded(artifact)) return null;
                     final RemoteFile remoteFile = fileFromJson(lib.at("downloads").at("artifact"));
+                    Objects.requireNonNull(remoteFile, "artifact");
                     return new Library(artifact, remoteFile);
                 })
                 .filter(Objects::nonNull)
@@ -72,7 +75,9 @@ public record ConcernedVersionDetail(RemoteFile clientJar, RemoteFile serverJar,
         };
     }
 
-    private static RemoteFile fileFromJson(Json json) {
+    @Contract("null->null")
+    private static RemoteFile fileFromJson(@Nullable Json json) {
+        if (json == null) return null;
         try {
             return RemoteFile.create(json.at("url").asString(), json.at("sha1").asString(), json.at("size").asLong());
         } catch (MalformedURLException e) {

@@ -52,6 +52,7 @@ public record Main(String version, DecompilerProvider decompilerProvider,
     private static final Logger LOGGER = LogUtils.getLogger();
 
     public void runProgram() throws Exception {
+        LOGGER.info("Running for {}", version());
         // 1. mcmeta
         LOGGER.info("1. Downloading MCMeta...");
         final VersionManifest.VersionMeta versionMeta = VersionManifest.getOrFetch().getVersion(version());
@@ -104,11 +105,10 @@ public record Main(String version, DecompilerProvider decompilerProvider,
 
         // 4. mappings
         LOGGER.info("4. Generating mapping tree...");
-        final MappingTreeView mapping = MappingProvider.prepareAll(mappingProviders(), mappingArgs(), versionMeta);
-        Collection<MappingProvider> mappingsToRemap = mappingProviders().values().stream()
-                .filter(MappingProvider::isRemapTarget)
-                //.map(MappingProvider::destNamespace)
-                .toList();
+        final MappingTreeView mapping;
+        final Map.Entry<MappingTreeView, Collection<MappingProvider>> preparedMappings = MappingProvider.prepareAll(mappingProviders(), mappingArgs(), versionMeta);
+        mapping = preparedMappings.getKey();
+        Collection<MappingProvider> mappingsToRemap = preparedMappings.getValue();
         LOGGER.info("\tTarget namespaces to remap: {}", mappingsToRemap.stream().map(MappingProvider::destNamespace).toList());
 
         xland.ioutils.xdecompiler.util.DebugUtils.log(5, l -> {
@@ -211,6 +211,14 @@ public record Main(String version, DecompilerProvider decompilerProvider,
             try { parser.printHelpOn(System.out); } catch (IOException e) {
                 CommonUtils.sneakyThrow(e);
             } return ;
+        } else if ("--run-script".equals(args[0])) {
+            final int l = args.length - 1;
+            String[] newArgs = new String[l];
+            System.arraycopy(args, 1, newArgs, 0, l);
+            try {
+                xland.ioutils.xdecompiler.script.Script.main(newArgs);
+            } catch (Throwable t) { CommonUtils.sneakyThrow(t); }
+            return;
         }
 
         final OptionSet parsed = parser.parse(args);

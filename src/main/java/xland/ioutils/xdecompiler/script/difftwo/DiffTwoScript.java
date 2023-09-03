@@ -213,12 +213,10 @@ public class DiffTwoScript extends Script {
             );
 
             if (!hasExc1) {
-                LOGGER.info("Running for {}", ver1);
                 xland.ioutils.xdecompiler.Main.main(ver1Args.toArray(new String[0]));
             }
 
             if (!hasExc2) {
-                LOGGER.info("Running for {}", ver2);
                 xland.ioutils.xdecompiler.Main.main(ver2Args.toArray(new String[0]));
             }
 

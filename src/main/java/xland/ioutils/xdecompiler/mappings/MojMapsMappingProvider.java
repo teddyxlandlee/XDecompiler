@@ -20,6 +20,7 @@ import net.fabricmc.mappingio.adapter.MappingSourceNsSwitch;
 import net.fabricmc.mappingio.format.ProGuardReader;
 import net.fabricmc.mappingio.tree.MappingTreeView;
 import net.fabricmc.mappingio.tree.MemoryMappingTree;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import xland.ioutils.xdecompiler.mcmeta.ConcernedVersionDetail;
@@ -28,6 +29,7 @@ import xland.ioutils.xdecompiler.mcmeta.VersionManifest;
 import xland.ioutils.xdecompiler.util.LogUtils;
 
 import java.io.BufferedReader;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStreamReader;
 
@@ -45,6 +47,7 @@ public class MojMapsMappingProvider implements MappingProvider {
     }
 
     @Override
+    @NotNull
     public MappingTreeView prepare(VersionManifest.VersionMeta versionMeta, String arg) throws IOException {
         final ConcernedVersionDetail detail = versionMeta.getOrFetchDetail();
 
@@ -52,8 +55,12 @@ public class MojMapsMappingProvider implements MappingProvider {
         MappingVisitor visitor = tree;
         visitor = new MappingSourceNsSwitch(visitor, SOURCE_NAMESPACE);
 
-        read(detail.clientMappings(), visitor);
-        read(detail.serverMappings(), visitor);
+        final RemoteFile clientMappings = detail.clientMappings(), serverMappings = detail.serverMappings();
+        if (clientMappings == null || serverMappings == null)
+            throw new FileNotFoundException("official mappings are absent for " + versionMeta.id());
+
+        read(clientMappings, visitor);
+        read(serverMappings, visitor);
         return tree;
     }
 

@@ -22,6 +22,7 @@ import net.fabricmc.mappingio.adapter.MappingNsRenamer;
 import net.fabricmc.mappingio.adapter.MappingSourceNsSwitch;
 import net.fabricmc.mappingio.tree.MappingTreeView;
 import net.fabricmc.mappingio.tree.MemoryMappingTree;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import xland.ioutils.xdecompiler.mcmeta.VersionManifest;
@@ -29,6 +30,7 @@ import xland.ioutils.xdecompiler.mcmeta.libraries.MavenArtifact;
 import xland.ioutils.xdecompiler.util.LogUtils;
 import xland.ioutils.xdecompiler.util.PublicProperties;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URL;
 import java.util.Collection;
@@ -50,11 +52,12 @@ public class YarnMappingProvider implements MappingProvider {
     }
 
     @Override
+    @NotNull
     public MappingTreeView prepare(VersionManifest.VersionMeta versionMeta, String arg) throws IOException {
         final String versionId = versionMeta.id();
         Json meta = Json.read(new URL("https://meta.fabricmc.net/v2/versions/yarn/" + versionId));
         if (meta.asJsonList().isEmpty()) {
-            throw new RuntimeException("Missing yarn for version " + versionId);
+            throw new FileNotFoundException("Missing yarn for version " + versionId);
         }
 
         if (arg.isEmpty() || "latest".equalsIgnoreCase(arg))

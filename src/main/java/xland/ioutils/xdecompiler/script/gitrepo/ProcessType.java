@@ -57,7 +57,11 @@ enum ProcessType implements Identified {
         appendable.append(commandOverride);
         for (String s : args)
             appendable.append(' ').append(s);
-        appendable.append("\nif \"${XDECOMPILER_TERMINATES}\" ; then return 1 ; fi\n");
+
+        if (!internal)
+            appendable.append("\nif \"${XDECOMPILER_TERMINATES}\" ; then return 1 ; fi\n");
+        else
+            appendable.append("\nif test $? -ne 0 || \"${XDECOMPILER_TERMINATES}\" ; then exit 1 ; fi\n");
     }
 
     static void override(String arg, /*Mutable*/Map<ProcessType, String> defaultCommands) {

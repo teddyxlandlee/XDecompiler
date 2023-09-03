@@ -27,8 +27,8 @@
 # Working directory is right here
 # Assume the repos are cloned
 XDECOMPILER_PWD=$(pwd)
-alias xdecompiler_run_raw="java -Dxdecompiler.download.vineflower=$4 -Dxdecompiler.download.mc.manifest=$3"\
-"-jar XDecompiler-fat.jar --decompiler $5"
+XDECOMPILER_RUN_RAW="java -Dxdecompiler.download.vineflower=$4 -Dxdecompiler.download.mc.manifest=$3"\
+" -jar XDecompiler-fat.jar --decompiler $5"
 XDECOMPILER_TIMEOUT_SOFT=$1
 XDECOMPILER_TIMEOUT_FORCE=$2
 
@@ -77,30 +77,31 @@ xdecompiler_run () {
   cp -r -t ${XDECOMPILER_PWD}/out-tmp/resources ${XDECOMPILER_PWD}/out/resources/.git
   #rm -rf ${XDECOMPILER_PWD}/out
 
-  xdecompiler_run0() {
-    # 1. Run main program, then add version stamp
-      cd "${XDECOMPILER_PWD}"
-      xdecompiler_run_raw --output-code "${XDECOMPILER_PWD}/out-tmp/src" \
-                          --output-resources "${XDECOMPILER_PWD}/out-tmp/resources" \
-                          "${XDECOMPILER_MAPPINGS[@]}" \
-                          "$1"
-      echo "$1" >> "${XDECOMPILER_PWD}/out-tmp/src/version.txt"
-
-      # 2. Commit, tagging
-      cd "${XDECOMPILER_PWD}/out-tmp/src"
-      git add .
-      git commit -m "$1"
-      git tag "$1"
-      cd "${XDECOMPILER_PWD}/out-tmp/resources"
-      git add .
-      git commit -m "$1"
-      git tag "$1"
-      cd "${XDECOMPILER_PWD}"
-  }
-
   # Use force termination
   timeout $(echo "( ${XDECOMPILER_INITIAL_DATE} + ${XDECOMPILER_TIMEOUT_FORCE} - $(date +%s%3N) ) * 0.001" | bc) \
-   bash -c 'xdecompiler_run0' "$0" "$1"
+   bash -c '#xdecompiler_run0
+      set -e
+      # 1. Run main program, then add version stamp
+      cd "$3"
+      $2 --output-code "$3/out-tmp/src" \
+                          --output-resources "$3/out-tmp/resources" \
+                          "${XDECOMPILER_MAPPINGS[@]}" \
+                          "$1"
+      echo "$1" >> "$3/out-tmp/src/version.txt"
+
+      # 2. Commit, tagging
+      cd "$3/out-tmp/src"
+      git add .
+      git commit -m "$1"
+      git tag "$1"
+      cd "$3/out-tmp/resources"
+      git add .
+      git commit -m "$1"
+      git tag "$1"
+      cd "$3"
+
+      set +e
+   ' "xdecompiler_run0" "$1" "${XDECOMPILER_RUN_RAW}" "${XDECOMPILER_PWD}"
   if [ "$?" == 124 ] ; then
     XDECOMPILER_TERMINATES=true
     return 1
