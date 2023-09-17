@@ -53,7 +53,7 @@ public class YarnMappingProvider implements MappingProvider {
 
     @Override
     @NotNull
-    public MappingTreeView prepare(VersionManifest.VersionMeta versionMeta, String arg) throws IOException {
+    public MappingTreeView prepare(ClassMemberInfoPool classMemberInfoPool, VersionManifest.VersionMeta versionMeta, String arg) throws IOException {
         final String versionId = versionMeta.id();
         Json meta = Json.read(new URL("https://meta.fabricmc.net/v2/versions/yarn/" + versionId));
         if (meta.asJsonList().isEmpty()) {

@@ -40,7 +40,7 @@ public interface MappingProvider extends Identified {
     String destNamespace();
 
     @NotNull
-    MappingTreeView prepare(VersionManifest.VersionMeta versionMeta, String arg) throws IOException;
+    MappingTreeView prepare(ClassMemberInfoPool classMembers, VersionManifest.VersionMeta versionMeta, String arg) throws IOException;
 
     default Collection<String> dependOn() {
         return Collections.emptyList();
@@ -50,7 +50,10 @@ public interface MappingProvider extends Identified {
         return destNamespace() != null;
     }
 
-    static Map.Entry<MappingTreeView, Collection<MappingProvider>> prepareAll(Map<String, MappingProvider> map, Map<String, String> args, VersionManifest.VersionMeta versionMeta) {
+    static Map.Entry<MappingTreeView, Collection<MappingProvider>> prepareAll(Map<String, MappingProvider> map,
+                                                                              Map<String, String> args,
+                                                                              ClassMemberInfoPool classMemberInfoPool,
+                                                                              VersionManifest.VersionMeta versionMeta) {
         map.values().forEach(provider -> {
             if (!map.keySet().containsAll(provider.dependOn()))
                 throw new IllegalStateException("Mapping " + provider.id() + " depends on " + provider.dependOn() +
@@ -66,7 +69,7 @@ public interface MappingProvider extends Identified {
         ConcurrentUtils.run(PublicProperties.mappingThreads(), executors -> map.values().stream()
                 .map(p -> CompletableFuture.supplyAsync(() -> {
                     try {
-                        final MappingTreeView treeView = p.prepare(versionMeta, args.getOrDefault(p.id(), ""));
+                        final MappingTreeView treeView = p.prepare(classMemberInfoPool, versionMeta, args.getOrDefault(p.id(), ""));
                         if (p.isRemapTarget()) mappingsToRemap.add(p);
                         return treeView;
                     } catch (FileNotFoundException e) {

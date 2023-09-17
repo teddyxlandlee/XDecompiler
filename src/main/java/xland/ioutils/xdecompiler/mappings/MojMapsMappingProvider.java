@@ -48,11 +48,12 @@ public class MojMapsMappingProvider implements MappingProvider {
 
     @Override
     @NotNull
-    public MappingTreeView prepare(VersionManifest.VersionMeta versionMeta, String arg) throws IOException {
+    public MappingTreeView prepare(ClassMemberInfoPool classMembers, VersionManifest.VersionMeta versionMeta, String arg) throws IOException {
         final ConcernedVersionDetail detail = versionMeta.getOrFetchDetail();
 
         MemoryMappingTree tree = new MemoryMappingTree();
         MappingVisitor visitor = tree;
+        visitor = MappingUtil.classMemberFilter(visitor, classMembers);
         visitor = new MappingSourceNsSwitch(visitor, SOURCE_NAMESPACE);
 
         final RemoteFile clientMappings = detail.clientMappings(), serverMappings = detail.serverMappings();

@@ -18,5 +18,6 @@
 
 # Arguments: None
 cd "${XDECOMPILER_PWD}"
+XDECOMPILER_TERMINATES=true
 
 # Then perform push by actions

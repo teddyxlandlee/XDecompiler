@@ -16,6 +16,7 @@
 package xland.ioutils.xdecompiler.mappings;
 
 import net.fabricmc.mappingio.MappingVisitor;
+import net.fabricmc.mappingio.adapter.ForwardingMappingVisitor;
 import net.fabricmc.mappingio.format.Tiny1Reader;
 
 import java.io.BufferedReader;
@@ -41,4 +42,27 @@ final class MappingUtil {
         }
     }
 
+    static MappingVisitor classMemberFilter(MappingVisitor prev, ClassMemberInfoPool classMembers) {
+        return new ForwardingMappingVisitor(prev) {
+            private String className;
+
+            @Override
+            public boolean visitClass(String srcName) throws IOException {
+                className = srcName;
+                return super.visitClass(srcName);
+            }
+
+            @Override
+            public boolean visitField(String srcName, String srcDesc) throws IOException {
+                if (!classMembers.hasField(className, srcName, srcDesc)) return false;
+                return super.visitField(srcName, srcDesc);
+            }
+
+            @Override
+            public boolean visitMethod(String srcName, String srcDesc) throws IOException {
+                if (!classMembers.hasMethod(className, srcName, srcDesc)) return false;
+                return super.visitMethod(srcName, srcDesc);
+            }
+        };
+    }
 }

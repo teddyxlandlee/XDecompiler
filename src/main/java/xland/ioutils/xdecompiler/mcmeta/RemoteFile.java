@@ -75,9 +75,9 @@ public record RemoteFile(URL url, String hash, @Nullable Long size, Supplier<Mes
                     throw new IOException("Hash mismatched", HashMismatchException.of(url.toString(), hash(), HashingUtil.stringify(b)));
                 }
             };  // don't check size, only hash
-        else
-            return new FilterInputStream(is) {
+        else return new FilterInputStream(is) {
             long bytes;
+            boolean lock;
 
             @Override
             public void close() throws IOException {
@@ -99,18 +99,29 @@ public record RemoteFile(URL url, String hash, @Nullable Long size, Supplier<Mes
             @Override
             public int read() throws IOException {
                 final int read = super.read();
-                if (read >= 0) bytes++;
+                if (!lock && read >= 0) bytes++;
                 return read;
             }
 
             @Override
             public int read(byte @NotNull [] b, int off, int len) throws IOException {
-                return add(super.read(b, off, len));
+                boolean wasLock = lock;
+                lock = true;
+                return add(super.read(b, off, len), wasLock);
             }
 
-            private int add(int b) {
+            private int add(int b, boolean wasLock) {
+                if (wasLock) return b;
                 bytes += b;
+                lock = false;
                 return b;
+            }
+
+            @Override
+            public int read(byte @NotNull [] b) throws IOException {
+                boolean wasLock = lock;
+                lock = true;
+                return add(super.read(b), wasLock);
             }
         };
     }

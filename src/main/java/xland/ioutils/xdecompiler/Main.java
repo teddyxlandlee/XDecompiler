@@ -23,6 +23,7 @@ import net.fabricmc.tinyremapper.OutputConsumerPath;
 import net.fabricmc.tinyremapper.TinyRemapper;
 import org.slf4j.Logger;
 import xland.ioutils.xdecompiler.decompile.DecompilerProvider;
+import xland.ioutils.xdecompiler.mappings.ClassMemberInfoPool;
 import xland.ioutils.xdecompiler.mappings.MappingProvider;
 import xland.ioutils.xdecompiler.mcmeta.ConcernedVersionDetail;
 import xland.ioutils.xdecompiler.mcmeta.VersionManifest;
@@ -103,10 +104,14 @@ public record Main(String version, DecompilerProvider decompilerProvider,
         LOGGER.info("3. Downloading libraries...");
         final Collection<Path> libraries = detail.downloadLibrariesAsync(libCache());
 
-        // 4. mappings
-        LOGGER.info("4. Generating mapping tree...");
+        // 4. read class member info
+        LOGGER.info("4. Reading class member info...");
+        final ClassMemberInfoPool classMemberInfoPool = ClassMemberInfoPool.fromJar(mergedJar);
+
+        // 5. mappings
+        LOGGER.info("5. Generating mapping tree...");
         final MappingTreeView mapping;
-        final Map.Entry<MappingTreeView, Collection<MappingProvider>> preparedMappings = MappingProvider.prepareAll(mappingProviders(), mappingArgs(), versionMeta);
+        final Map.Entry<MappingTreeView, Collection<MappingProvider>> preparedMappings = MappingProvider.prepareAll(mappingProviders(), mappingArgs(), classMemberInfoPool, versionMeta);
         mapping = preparedMappings.getKey();
         Collection<MappingProvider> mappingsToRemap = preparedMappings.getValue();
         LOGGER.info("\tTarget namespaces to remap: {}", mappingsToRemap.stream().map(MappingProvider::destNamespace).toList());
@@ -123,8 +128,8 @@ public record Main(String version, DecompilerProvider decompilerProvider,
             }
         });
 
-        // 5. remap & decompile
-        LOGGER.info("5. Starting remap & decompile...");
+        // 6. remap & decompile
+        LOGGER.info("6. Starting remap & decompile...");
         ExecutorService singleThreadExecutor = Executors.newSingleThreadExecutor();
         try {
             ConcurrentUtils.run(PublicProperties.remapThreads(), executors -> mappingsToRemap.stream()
