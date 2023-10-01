@@ -1,3 +1,6 @@
+import java.time.ZoneId
+import java.time.ZonedDateTime
+
 plugins {
     id("java")
     id("com.diffplug.spotless") version "6.20.0"
@@ -14,6 +17,7 @@ repositories {
 
 tasks.withType(JavaCompile::class).configureEach {
     options.release.set(17)
+    options.encoding = "utf8"
 }
 
 tasks.shadowJar {
@@ -63,7 +67,7 @@ tasks.jar {
     	"Specification-Title" to "XDecompiler",
     	"Specification-Version" to "1.4",
     	"Specification-Vendor" to "teddyxlandlee",
-    	"Implementation-Timestamp" to "${java.time.ZonedDateTime.now(java.time.ZoneId.of("+08:00")).withNano(0)}",
+    	"Implementation-Timestamp" to "${ZonedDateTime.now(ZoneId.of("+08:00")).withNano(0)}",
     	"Automatic-Module-Name" to "xland.ioutils.xdecompiler",
     )
 }
