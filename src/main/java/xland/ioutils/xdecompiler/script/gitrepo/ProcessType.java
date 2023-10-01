@@ -98,7 +98,7 @@ enum ProcessType implements Identified {
             type.write(appendable, defaultCommands.get(type), e.getValue());
         }
 
-        appendable.append("\n}\n").append(commandName).append('\n');
+        appendable.append("\necho 'Done!'\n}\n").append(commandName).append('\n');
     }
 
     static void writeCommands(Appendable appendable,

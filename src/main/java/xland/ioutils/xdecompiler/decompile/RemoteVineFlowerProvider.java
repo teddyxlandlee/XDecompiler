@@ -57,7 +57,7 @@ public class RemoteVineFlowerProvider implements DecompilerProvider {
                 "--folder",
                 "-asc=1",
                 "-iec=1",
-                //"-jvn=1", /* since local variables are fixed by tiny remapper, here we don't use it */
+                "-jvn=1", /* Fix the try-catch variable */
                 "-iib=1",
                 "-bsm=1",
                 //"-dcl=1", /* we dump into folder */

@@ -55,5 +55,15 @@ tasks.processResources {
 }
 
 tasks.jar {
-    manifest.attributes("Main-Class" to "xland.ioutils.xdecompiler.Main")
+    manifest.attributes(
+    	"Main-Class" to "xland.ioutils.xdecompiler.Main",
+    	"Implementation-Title" to "XDecompiler",
+    	"Implementation-Version" to project.version,
+    	"Implementation-Vendor" to "teddyxlandlee",
+    	"Specification-Title" to "XDecompiler",
+    	"Specification-Version" to "1.4",
+    	"Specification-Vendor" to "teddyxlandlee",
+    	"Implementation-Timestamp" to "${java.time.ZonedDateTime.now(java.time.ZoneId.of("+08:00")).withNano(0)}",
+    	"Automatic-Module-Name" to "xland.ioutils.xdecompiler",
+    )
 }
