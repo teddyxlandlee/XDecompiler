@@ -65,7 +65,7 @@ tasks.jar {
     	"Implementation-Version" to project.version,
     	"Implementation-Vendor" to "teddyxlandlee",
     	"Specification-Title" to "XDecompiler",
-    	"Specification-Version" to "1.4",
+    	"Specification-Version" to project.property("spec_version"),
     	"Specification-Vendor" to "teddyxlandlee",
     	"Implementation-Timestamp" to "${ZonedDateTime.now(ZoneId.of("+08:00")).withNano(0)}",
     	"Automatic-Module-Name" to "xland.ioutils.xdecompiler",
