@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.MalformedURLException;
+import java.net.URI;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -33,11 +34,11 @@ import java.util.function.Supplier;
 
 public record RemoteFile(URL url, String hash, @Nullable Long size, Supplier<MessageDigest> mdFactory) {
     public static RemoteFile create(String url, String sha1) throws MalformedURLException {
-        return new RemoteFile(new URL(url), sha1, null, HashingUtil::sha1);
+        return new RemoteFile(URI.create(url).toURL(), sha1, null, HashingUtil::sha1);
     }
 
     public static RemoteFile create(String url, String sha1, long size) throws MalformedURLException {
-        return new RemoteFile(new URL(url), sha1, size, HashingUtil::sha1);
+        return new RemoteFile(URI.create(url).toURL(), sha1, size, HashingUtil::sha1);
     }
 
     public boolean matchHash(Path path) throws IOException {

@@ -30,7 +30,7 @@ import xland.ioutils.xdecompiler.util.PublicProperties;
 import xland.ioutils.xdecompiler.util.TimeUtils;
 
 import java.io.IOException;
-import java.net.URL;
+import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -96,7 +96,7 @@ public class GitRepoScript extends Script {
     }
 
     private static String download(Path path, Supplier<String> urlProvider) throws IOException {
-        try (var is = new URL(urlProvider.get()).openStream()) {
+        try (var is = URI.create(urlProvider.get()).toURL().openStream()) {
             Files.copy(is, path, StandardCopyOption.REPLACE_EXISTING);
         }
         return path.toUri().toURL().toString();

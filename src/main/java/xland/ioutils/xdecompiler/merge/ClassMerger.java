@@ -184,7 +184,7 @@ public class ClassMerger {
             envInterfaces.visitEnd();
         }
 
-        new Merger<InnerClassNode>(nodeC.innerClasses, nodeS.innerClasses) {
+        new Merger<>(nodeC.innerClasses, nodeS.innerClasses) {
             @Override
             public String getName(InnerClassNode entry) {
                 return entry.name;
@@ -195,7 +195,7 @@ public class ClassMerger {
             }
         }.merge(nodeOut.innerClasses);
 
-        new Merger<FieldNode>(nodeC.fields, nodeS.fields) {
+        new Merger<>(nodeC.fields, nodeS.fields) {
             @Override
             public String getName(FieldNode entry) {
                 return entry.name + ";;" + entry.desc;
@@ -208,7 +208,7 @@ public class ClassMerger {
             }
         }.merge(nodeOut.fields);
 
-        new Merger<MethodNode>(nodeC.methods, nodeS.methods) {
+        new Merger<>(nodeC.methods, nodeS.methods) {
             @Override
             public String getName(MethodNode entry) {
                 return entry.name + entry.desc;

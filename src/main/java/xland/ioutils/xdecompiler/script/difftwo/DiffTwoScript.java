@@ -31,6 +31,7 @@ import xland.ioutils.xdecompiler.util.TimeUtils;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
+import java.net.URI;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.Path;
@@ -111,7 +112,7 @@ public class DiffTwoScript extends Script {
                 if (diffPatch == null) {
                     final Path path = this.baseDir.resolve("DiffPatch.jar");
                     final RemoteFile remoteFile = new RemoteFile(
-                            new URL(diffPatchUrl()),
+                            URI.create(diffPatchUrl()).toURL(),
                             diffPatchSha512(),
                             null,
                             HashingUtil::sha512

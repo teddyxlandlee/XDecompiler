@@ -137,11 +137,11 @@ record ConfigFile(boolean releaseOnly, List<String> mappings, String decompiler,
         int end = -1;
 
         for (int i = 0; i < list.size(); i++) {
-            if (list.get(i) instanceof VersionEntryProvider entry) {
-                if (LOGGER.isDebugEnabled()) LOGGER.debug("entry version: {}", entry.version());
-                if (knownCurrentVersions.contains(entry.version())) {
+            if (list.get(i) instanceof VersionEntryProvider(String version)) {
+                if (LOGGER.isDebugEnabled()) LOGGER.debug("entry version: {}", version);
+                if (knownCurrentVersions.contains(version)) {
                     sub = i + 1;
-                } else if (Objects.equals(entry.version(), stopPoint)) {
+                } else if (Objects.equals(version, stopPoint)) {
                     end = i + 1;
                     break;
                 }

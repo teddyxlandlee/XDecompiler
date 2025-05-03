@@ -90,6 +90,7 @@ public class TempDirs implements Closeable {
         }
     }
 
+    @SuppressWarnings("unused")
     public void flush() throws IOException {
         FileUtils.deleteRecursively(baseDir, true);
     }

@@ -16,12 +16,19 @@ repositories {
 }
 
 tasks.withType(JavaCompile::class).configureEach {
-    options.release.set(17)
+    options.release.set(21)
     options.encoding = "utf8"
 }
 
+val vineflowerDecompiler: SourceSet by sourceSets.creating
+
 tasks.shadowJar {
     archiveClassifier.set("fat")
+    dependsOn("compileVineflowerDecompilerJava")
+}
+
+tasks.shadowJar.configure {
+    from(vineflowerDecompiler.output.dirs)
 }
 
 tasks.build {
@@ -34,22 +41,33 @@ spotless {
     }
 }
 
+tasks.getByName("compileVineflowerDecompilerJava", JavaCompile::class) {
+    mustRunAfter("compileJava")
+    classpath += sourceSets.main.get().output + sourceSets.main.get().compileClasspath
+}
+
 dependencies {
+    val asmVersion = project.property("asm_version")!!
+
     implementation("net.sf.jopt-simple:jopt-simple:5.0.4")
-    implementation("net.fabricmc:mapping-io:0.4.2")
-    implementation("net.fabricmc:tiny-remapper:0.8.7")
-    implementation("org.ow2.asm:asm:9.5")
-    implementation("org.ow2.asm:asm-commons:9.5")
-    implementation("org.ow2.asm:asm-tree:9.5")
-    implementation("org.ow2.asm:asm-util:9.5")
-    implementation("org.sharegov:mjson:1.4.1") {
+    implementation("net.fabricmc:mapping-io:0.7.1")
+    implementation("net.fabricmc:tiny-remapper:0.11.1")
+    implementation("org.ow2.asm:asm:${asmVersion}")
+    implementation("org.ow2.asm:asm-commons:${asmVersion}")
+    implementation("org.ow2.asm:asm-tree:${asmVersion}")
+    implementation("org.ow2.asm:asm-util:${asmVersion}")
+    implementation("org.sharegov:mjson:1.4.2") {
         exclude(group = "junit")
     }
-    implementation("org.slf4j:slf4j-api:2.0.7")
-    runtimeOnly("org.slf4j:slf4j-simple:2.0.7")
-    compileOnly("org.jetbrains:annotations:23.0.0")
+    implementation("org.slf4j:slf4j-api:2.0.17")
+    runtimeOnly("org.slf4j:slf4j-simple:2.0.17")
+    compileOnly("org.jetbrains:annotations:26.0.2")
 
     testCompileOnly("net.fabricmc:stitch:0.6.2")
+
+    // To construct vineflower instance
+    add("vineflowerDecompilerCompileOnly", "org.vineflower:vineflower:1.11.1")
+    compileOnly("org.vineflower:vineflower:1.11.1")
 }
 
 tasks.processResources {
@@ -70,4 +88,9 @@ tasks.jar {
     	"Implementation-Timestamp" to "${ZonedDateTime.now(ZoneId.of("+08:00")).withNano(0)}",
     	"Automatic-Module-Name" to "xland.ioutils.xdecompiler",
     )
+    dependsOn("compileVineflowerDecompilerJava")
+}
+
+tasks.jar.configure {
+    from(vineflowerDecompiler.output.dirs)
 }

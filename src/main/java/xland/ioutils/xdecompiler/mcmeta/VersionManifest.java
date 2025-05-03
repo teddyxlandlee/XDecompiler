@@ -25,6 +25,7 @@ import xland.ioutils.xdecompiler.util.TempDirs;
 
 import java.io.IOException;
 import java.net.MalformedURLException;
+import java.net.URI;
 import java.net.URL;
 import java.nio.file.Path;
 import java.time.chrono.ChronoZonedDateTime;
@@ -54,7 +55,7 @@ public final class VersionManifest {
             synchronized (LOCK) {
                 if (instance == null) {
                     try {
-                        URL url = new URL(PublicProperties.versionManifestUrl());
+                        URL url = URI.create(PublicProperties.versionManifestUrl()).toURL();
                         instance = fromJson(Json.read(url));
                     } catch (IOException e) {
                         throw new RuntimeException("Failed to get version manifest from " + PublicProperties.versionManifestUrl(), e);
@@ -205,6 +206,7 @@ public final class VersionManifest {
             return isSnapshot;
         }
 
+        @SuppressWarnings("unused")
         public boolean isLegacy() {
             return isLegacy;
         }
@@ -213,6 +215,7 @@ public final class VersionManifest {
             return file;
         }
 
+        @SuppressWarnings("unused")
         public ChronoZonedDateTime<?> time() {
             return time;
         }

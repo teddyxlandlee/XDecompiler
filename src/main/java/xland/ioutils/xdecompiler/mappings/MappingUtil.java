@@ -17,7 +17,7 @@ package xland.ioutils.xdecompiler.mappings;
 
 import net.fabricmc.mappingio.MappingVisitor;
 import net.fabricmc.mappingio.adapter.ForwardingMappingVisitor;
-import net.fabricmc.mappingio.format.Tiny1Reader;
+import net.fabricmc.mappingio.format.tiny.Tiny1FileReader;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -37,7 +37,7 @@ final class MappingUtil {
             if (entry == null)
                 throw new RuntimeException("Invalid mapping jar: " + url);
             try (BufferedReader reader = new BufferedReader(new InputStreamReader(zis))) {
-                Tiny1Reader.read(reader, visitor);
+                Tiny1FileReader.read(reader, visitor);
             }
         }
     }

@@ -18,10 +18,16 @@ package xland.ioutils.xdecompiler.util;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
 public class ConcurrentUtils {
+    public static ExecutorService namedVirtualThreadExecutor(String prefix, int threadCount) {
+        ThreadFactory factory = Thread.ofVirtual().name(prefix + '-').factory();
+        return Executors.newFixedThreadPool(threadCount, factory);
+    }
+
     private static class ThrowableHolder {
         volatile Throwable t0;
 
@@ -34,8 +40,8 @@ public class ConcurrentUtils {
     }
 
     @SuppressWarnings("unchecked")
-    public static <T extends Throwable> void run(int threadCount, Function<ExecutorService, Stream<CompletableFuture<Void>>> streamSupplier) throws T {
-        final ExecutorService service = Executors.newFixedThreadPool(threadCount);
+    public static <T extends Throwable> void run(String prefix, int threadCount, Function<ExecutorService, Stream<CompletableFuture<Void>>> streamSupplier) throws T {
+        final ExecutorService service = namedVirtualThreadExecutor(prefix, threadCount);
         ThrowableHolder throwableHolder = new ThrowableHolder();
 
         try {

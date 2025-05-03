@@ -17,7 +17,7 @@ package xland.ioutils.xdecompiler.mappings;
 
 import net.fabricmc.mappingio.MappingVisitor;
 import net.fabricmc.mappingio.adapter.MappingSourceNsSwitch;
-import net.fabricmc.mappingio.format.ProGuardReader;
+import net.fabricmc.mappingio.format.proguard.ProGuardFileReader;
 import net.fabricmc.mappingio.tree.MappingTreeView;
 import net.fabricmc.mappingio.tree.MemoryMappingTree;
 import org.jetbrains.annotations.NotNull;
@@ -70,13 +70,13 @@ public class MojMapsMappingProvider implements MappingProvider {
             if (xland.ioutils.xdecompiler.util.DebugUtils.flagged(4)) {
                 var f = xland.ioutils.xdecompiler.util.TempDirs.get().createFile();
                 LOGGER.info("Writing mapping to {} due to debug flag 4", f);
-                try (var visitor0 = new net.fabricmc.mappingio.format.Tiny2Writer(java.nio.file.Files.newBufferedWriter(f), true)) {
+                try (var visitor0 = new net.fabricmc.mappingio.format.tiny.Tiny2FileWriter(java.nio.file.Files.newBufferedWriter(f), true)) {
                     MappingVisitor visitor1 = visitor0;
                     visitor1 = new MappingSourceNsSwitch(visitor1, SOURCE_NAMESPACE);
-                    ProGuardReader.read(reader, "mojmaps", SOURCE_NAMESPACE, visitor1);
+                    ProGuardFileReader.read(reader, "mojmaps", SOURCE_NAMESPACE, visitor1);
                 }
             }
-            ProGuardReader.read(reader, "mojmaps", SOURCE_NAMESPACE, visitor);
+            ProGuardFileReader.read(reader, "mojmaps", SOURCE_NAMESPACE, visitor);
         }
     }
 }

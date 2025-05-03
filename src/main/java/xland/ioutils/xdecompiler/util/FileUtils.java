@@ -16,9 +16,11 @@
 package xland.ioutils.xdecompiler.util;
 
 import mjson.Json;
-import org.slf4j.Logger;
+import org.jetbrains.annotations.NotNull;
 
+import java.io.File;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -28,18 +30,17 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
 public class FileUtils {
-    private static final Logger LOGGER = LogUtils.getLogger();
 
     public static void deleteRecursively(Path root, boolean retainRoot) throws IOException {
         Files.walkFileTree(root, new SimpleFileVisitor<>() {
             @Override
-            public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+            public @NotNull FileVisitResult visitFile(Path file, @NotNull BasicFileAttributes attrs) throws IOException {
                 Files.delete(file);
                 return FileVisitResult.CONTINUE;
             }
 
             @Override
-            public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
+            public @NotNull FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
                 if (retainRoot && root.equals(dir)) return FileVisitResult.CONTINUE;
                 Files.delete(dir);
                 return FileVisitResult.CONTINUE;
@@ -74,6 +75,20 @@ public class FileUtils {
             Files.createSymbolicLink(to, from);
         } catch (UnsupportedOperationException e) {
             Files.copy(from, to);
+        }
+    }
+
+    public static File pathToFile(Path path) {
+        try {
+            return path.toFile();
+        } catch (UnsupportedOperationException e) {
+            try {
+                var file = TempDirs.get().createFileDefaultFs();
+                Files.copy(path, file.toPath());
+                return file;
+            } catch (IOException ex) {
+                throw new UncheckedIOException(ex);
+            }
         }
     }
 }
