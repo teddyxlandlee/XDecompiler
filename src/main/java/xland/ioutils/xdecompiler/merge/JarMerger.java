@@ -21,6 +21,7 @@ import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.Opcodes;
 import org.slf4j.Logger;
+import xland.ioutils.xdecompiler.util.ConcurrentUtils;
 import xland.ioutils.xdecompiler.util.LogUtils;
 
 import java.io.File;
@@ -30,7 +31,6 @@ import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
@@ -99,19 +99,26 @@ public class JarMerger implements AutoCloseable {
         Map<String, Entry> entriesClient = new LinkedHashMap<>();
         Map<String, Entry> entriesServer = new LinkedHashMap<>();
 
-        ExecutorService service = Executors.newFixedThreadPool(2);
-        service.submit(() -> readToMap(inputClient, entriesClient, outputResources));
-        service.submit(() -> readToMap(inputServer, entriesServer, null));
-        service.shutdown();
-        
         boolean mergeSuccess;
-        try {
-            mergeSuccess = service.awaitTermination(1, TimeUnit.HOURS);
-        } catch (InterruptedException e) {
-            mergeSuccess = false;
+        Throwable mergeFailure = null;
+        try (ExecutorService service = ConcurrentUtils.namedVirtualThreadExecutor("jar-merger", 2)) {
+            service.submit(() -> readToMap(inputClient, entriesClient, outputResources));
+            service.submit(() -> readToMap(inputServer, entriesServer, null));
+            service.shutdown();
+
+            try {
+                mergeSuccess = service.awaitTermination(1, TimeUnit.HOURS);
+            } catch (InterruptedException e) {
+                mergeSuccess = false;
+                mergeFailure = e;
+            }
         }
         if (!mergeSuccess) {
-            throw new RuntimeException("Merge failed");
+            RuntimeException ex = new RuntimeException("Merge failed");
+            if (mergeFailure != null) {
+                ex.initCause(mergeFailure);
+            }
+            throw ex;
         }
         
         Set<String> entriesAll = new LinkedHashSet<>();
@@ -159,19 +166,7 @@ public class JarMerger implements AutoCloseable {
                     byte[] data = result.data;
                     ClassReader reader = new ClassReader(data);
                     ClassWriter writer = new ClassWriter(0);
-                    ClassVisitor visitor = writer;
-
-                    if (side != null) {
-                        visitor = new ClassMerger.SidedClassVisitor(Opcodes.ASM9, visitor, side);
-                    }
-
-                    if (removeSnowmen) {
-                        visitor = new SnowmanClassVisitor(Opcodes.ASM9, visitor);
-                    }
-
-                    if (offsetSyntheticsParams) {
-                        visitor = new SyntheticParameterClassVisitor(Opcodes.ASM9, visitor);
-                    }
+                    ClassVisitor visitor = visitThrough(writer, side);
 
                     if (visitor != writer) {
                         reader.accept(visitor, 0);
@@ -193,6 +188,23 @@ public class JarMerger implements AutoCloseable {
                 throw new UncheckedIOException(ex);
             }
         });
+    }
+
+    private ClassVisitor visitThrough(ClassWriter writer, String side) {
+        ClassVisitor visitor = writer;
+
+        if (side != null) {
+            visitor = new ClassMerger.SidedClassVisitor(Opcodes.ASM9, visitor, side);
+        }
+
+        if (removeSnowmen) {
+            visitor = new SnowmanClassVisitor(Opcodes.ASM9, visitor);
+        }
+
+        if (offsetSyntheticsParams) {
+            visitor = new SyntheticParameterClassVisitor(Opcodes.ASM9, visitor);
+        }
+        return visitor;
     }
 
     public record Entry(String path, byte[] data) {}

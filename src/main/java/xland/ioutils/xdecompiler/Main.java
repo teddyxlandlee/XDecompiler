@@ -120,7 +120,7 @@ public record Main(String version, DecompilerProvider decompilerProvider,
             try {
                 Path path = TempDirs.get().createFile();
                 l.info("Dumping mapping tree to {} due to debug flag 5", path);
-                try (var v = new net.fabricmc.mappingio.format.Tiny1Writer(Files.newBufferedWriter(path))) {
+                try (var v = new net.fabricmc.mappingio.format.tiny.Tiny1FileWriter(Files.newBufferedWriter(path))) {
                     mapping.accept(v);
                 }
             } catch (IOException e) {
@@ -130,9 +130,8 @@ public record Main(String version, DecompilerProvider decompilerProvider,
 
         // 6. remap & decompile
         LOGGER.info("6. Starting remap & decompile...");
-        ExecutorService singleThreadExecutor = Executors.newSingleThreadExecutor();
-        try {
-            ConcurrentUtils.run(PublicProperties.remapThreads(), executors -> mappingsToRemap.stream()
+        try (ExecutorService singleThreadExecutor = Executors.newSingleThreadExecutor()) {
+            ConcurrentUtils.run("remap", PublicProperties.remapThreads(), executors -> mappingsToRemap.stream()
                     .map(provider -> CompletableFuture.supplyAsync(() -> {
                         // remap
                         final String providerId = provider.id();
@@ -162,8 +161,6 @@ public record Main(String version, DecompilerProvider decompilerProvider,
                         decompilerProvider().decompile(pair.getKey(), libraries, pathOut);
                     }, singleThreadExecutor))
             );
-        } finally {
-            singleThreadExecutor.shutdown();
         }
     }
 
@@ -273,5 +270,10 @@ public record Main(String version, DecompilerProvider decompilerProvider,
         } catch (Exception e) {
             CommonUtils.sneakyThrow(e);
         }
+    }
+
+    static {
+        // Actually to load PublicProperties class
+        PublicProperties.LOGGER.info("Initializing public properties");
     }
 }

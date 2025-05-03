@@ -25,6 +25,7 @@ import xland.ioutils.xdecompiler.util.PublicProperties;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.net.URI;
 import java.net.URL;
 
 public class IntermediaryMappingProvider implements MappingProvider {
@@ -43,13 +44,13 @@ public class IntermediaryMappingProvider implements MappingProvider {
     @NotNull
     public MappingTreeView prepare(ClassMemberInfoPool classMemberInfoPool, VersionManifest.VersionMeta versionMeta, String arg) throws IOException {
         final String versionId = versionMeta.id();
-        Json meta = Json.read(new URL("https://meta.fabricmc.net/v2/versions/intermediary/" + versionId));
+        Json meta = Json.read(URI.create("https://meta.fabricmc.net/v2/versions/intermediary/" + versionId).toURL());
         if (meta.asJsonList().isEmpty()) {
             throw new FileNotFoundException("Missing intermediary for version " + versionId);
         }
         MavenArtifact artifact = MavenArtifact.of(meta.at(0).at("maven").asString());
 
-        URL url = new URL(PublicProperties.fabricMaven());
+        URL url = URI.create(PublicProperties.fabricMaven()).toURL();
         url = artifact.atMaven(url);
 
         MemoryMappingTree tree = new MemoryMappingTree();

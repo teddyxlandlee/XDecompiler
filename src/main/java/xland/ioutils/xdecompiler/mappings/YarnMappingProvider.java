@@ -32,6 +32,7 @@ import xland.ioutils.xdecompiler.util.PublicProperties;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.net.URI;
 import java.net.URL;
 import java.util.Collection;
 import java.util.List;
@@ -55,7 +56,7 @@ public class YarnMappingProvider implements MappingProvider {
     @NotNull
     public MappingTreeView prepare(ClassMemberInfoPool classMemberInfoPool, VersionManifest.VersionMeta versionMeta, String arg) throws IOException {
         final String versionId = versionMeta.id();
-        Json meta = Json.read(new URL("https://meta.fabricmc.net/v2/versions/yarn/" + versionId));
+        Json meta = Json.read(URI.create("https://meta.fabricmc.net/v2/versions/yarn/" + versionId).toURL());
         if (meta.asJsonList().isEmpty()) {
             throw new FileNotFoundException("Missing yarn for version " + versionId);
         }
@@ -78,7 +79,7 @@ public class YarnMappingProvider implements MappingProvider {
 
         MavenArtifact artifact = MavenArtifact.of(meta.at("maven").asString());
 
-        URL url = new URL(PublicProperties.fabricMaven());
+        URL url = URI.create(PublicProperties.fabricMaven()).toURL();
         url = artifact.atMaven(url);
 
         MemoryMappingTree tree = new MemoryMappingTree();
@@ -90,7 +91,7 @@ public class YarnMappingProvider implements MappingProvider {
         if (xland.ioutils.xdecompiler.util.DebugUtils.flagged(3)) {
             var f = xland.ioutils.xdecompiler.util.TempDirs.get().createFile();
             LOGGER.info("Dumping mapping to {} due to debug flag 3...", f);
-            try (var w = new net.fabricmc.mappingio.format.Tiny2Writer(java.nio.file.Files.newBufferedWriter(f), true)) {
+            try (var w = new net.fabricmc.mappingio.format.tiny.Tiny2FileWriter(java.nio.file.Files.newBufferedWriter(f), true)) {
                 MappingVisitor visitor1 = w;
                 visitor1 = new MappingDstNsReorder(visitor1, "yarn");
                 visitor1 = new MappingSourceNsSwitch(visitor1, "intermediary");

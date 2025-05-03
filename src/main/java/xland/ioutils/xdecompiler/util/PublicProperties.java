@@ -15,7 +15,25 @@
  */
 package xland.ioutils.xdecompiler.util;
 
+import org.slf4j.Logger;
+
+import java.io.IOException;
+import java.util.Properties;
+
 public class PublicProperties {
+    public static final Logger LOGGER = LogUtils.getLogger();
+
+    static {
+        Properties p = new Properties();
+        try (var input = PublicProperties.class.getResourceAsStream("/assets/public.properties")) {
+            p.load(input);
+        } catch (IOException e) {
+            LOGGER.error("Failed to load public properties. Using built-in defaults (may not be up-to-date)", e);
+            // Constant property values in this file are stubs like this
+        }
+        System.getProperties().putAll(p);
+    }
+
     public static String versionManifestUrl() {
         return System.getProperty("xdecompiler.download.mc.manifest", "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json");
     }

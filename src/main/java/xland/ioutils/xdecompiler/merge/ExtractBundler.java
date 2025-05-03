@@ -84,7 +84,7 @@ public class ExtractBundler {
         try (InputStream output = Files.newInputStream(file)) {
             output.transferTo(new DigestOutputStream(OutputStream.nullOutputStream(), digest));
 
-            byte[] actualHash = (digest.digest());
+            byte[] actualHash = digest.digest();
             if (HashingUtil.isSame(expectedHash, actualHash))
                 return true;
 

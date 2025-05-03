@@ -109,8 +109,8 @@ enum ProcessType implements Identified {
         final int size = entryList.size();
         if (size < 2)
             throw new IllegalArgumentException("Not enough arguments in entry list");
-        first = entryList.get(0);
-        last = entryList.get(size - 1);
+        first = entryList.getFirst();
+        last = entryList.getLast();
 
         ProcessType type = first.getKey();
         type.write(appendable, defaultCommands.get(type), first.getValue(), true);

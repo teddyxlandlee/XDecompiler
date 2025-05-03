@@ -23,6 +23,16 @@
 			"parent": "main",
 			"from": "23w13a",
 			"versions": ["23w13a_or_b"]
+		},
+		"AprilFools/2024": {
+			"parent": "main",
+			"from": "24w12a",
+			"versions": ["24w14potato"]
+		},
+		"AprilFools/2025": {
+			"parent": "main",
+			"from": "1.21.5-rc1",
+			"versions": ["25w14craftmine"]
 		}
 	}
 }

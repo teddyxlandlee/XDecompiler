@@ -59,7 +59,7 @@ public record ConcernedVersionDetail(RemoteFile clientJar, RemoteFile serverJar,
 
     public Collection<Path> downloadLibrariesAsync(Path repo) {
         Collection<Path> paths = new CopyOnWriteArrayList<>();
-        ConcurrentUtils.run(PublicProperties.downloadThreads(), service -> libraries().stream()
+        ConcurrentUtils.run("download-libraries", PublicProperties.downloadThreads(), service -> libraries().stream()
                 .map(lib -> CompletableFuture.supplyAsync(() -> lib.getOrDownload(repo), service))
                 .map(c -> c.thenAccept(paths::add))
         );
