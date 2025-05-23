@@ -18,6 +18,7 @@ package xland.ioutils.xdecompiler.mcmeta.libraries;
 import xland.ioutils.xdecompiler.util.CommonUtils;
 
 import java.net.MalformedURLException;
+import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 
@@ -62,15 +63,25 @@ public record MavenArtifact(String group, String name, String version, String cl
 
     public URL atMaven(URL maven) {
         String path = maven.getPath();
-        StringBuilder sb = new StringBuilder("/");
-        sb.append(path);
+        StringBuilder sb = new StringBuilder(path);
+
         if (!path.endsWith("/")) {
             sb.append('/');
         }
         sb.append(this.getPath());
+
         try {
-            return maven.toURI().resolve(sb.toString()).normalize().toURL();
-        } catch (MalformedURLException | URISyntaxException e) {
+            URI uri = new URI(
+                    maven.getProtocol(),
+                    null,
+                    maven.getHost(),
+                    maven.getPort(),
+                    sb.toString(),
+                    null,
+                    null
+            );
+            return uri.toURL();
+        } catch (URISyntaxException | MalformedURLException e) {
             CommonUtils.sneakyThrow(e);
             throw new AssertionError();
         }
