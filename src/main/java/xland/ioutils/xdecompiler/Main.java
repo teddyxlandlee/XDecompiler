@@ -96,7 +96,9 @@ public record Main(String version, DecompilerProvider decompilerProvider,
             l.info("Deleting old files due to debug flag 2");
             try {
                 xland.ioutils.xdecompiler.util.FileUtils.deleteRecursively(outputRes(), true);
-            } catch (IOException e) { l.warn("\tFailed to delete"); }
+            } catch (IOException e) {
+                l.warn("\tFailed to delete");
+            }
         });
         FileUtils.extractZip(resources, outputRes());
 
@@ -131,7 +133,8 @@ public record Main(String version, DecompilerProvider decompilerProvider,
         // 6. remap & decompile
         LOGGER.info("6. Starting remap & decompile...");
         try (ExecutorService singleThreadExecutor = Executors.newSingleThreadExecutor()) {
-            ConcurrentUtils.run("remap", PublicProperties.remapThreads(), executors -> mappingsToRemap.stream()
+            // CPU-consuming
+            ConcurrentUtils.runPlatform("remap", PublicProperties.remapThreads(), executors -> mappingsToRemap.stream()
                     .map(provider -> CompletableFuture.supplyAsync(() -> {
                         // remap
                         final String providerId = provider.id();

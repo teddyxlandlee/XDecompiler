@@ -16,6 +16,7 @@
 package xland.ioutils.xdecompiler.decompile;
 
 import org.slf4j.Logger;
+import xland.ioutils.xdecompiler.decompile.vineflower.VineFlowerEntrypoint;
 import xland.ioutils.xdecompiler.mcmeta.HashMismatchException;
 import xland.ioutils.xdecompiler.mcmeta.HashingUtil;
 import xland.ioutils.xdecompiler.mcmeta.RemoteFile;
@@ -36,8 +37,9 @@ import java.util.zip.GZIPOutputStream;
 
 public class RemoteVineFlowerProvider implements DecompilerProvider {
     private static final Logger LOGGER = LogUtils.getLogger();
-    private static final AtomicInteger THREAD_ID = new AtomicInteger();
-    
+    private static final String VF_ENTRYPOINT = "xland.ioutils.xdecompiler.decompile.vineflower.VineFlowerEntrypoint";
+    private static final Thread.Builder THREAD_BUILDER = Thread.ofPlatform().name("vineflower-instance-", 1);
+
     public RemoteVineFlowerProvider() {}
 
     @Override
@@ -47,6 +49,14 @@ public class RemoteVineFlowerProvider implements DecompilerProvider {
 
     @Override
     public void decompile(Path jarIn, Collection<Path> classpath, Path dirOut) {
+        xland.ioutils.xdecompiler.util.DebugUtils.log(3, l -> {
+            l.info("Listing decompile arguments due to debug flag 3");
+            l.info("jarIn:\t{}", jarIn);
+            l.info("dirOut:\t{}", dirOut);
+            l.info("classpath:");
+            classpath.forEach(p -> l.info("\t- {}", p));
+            l.info("====================");
+        });
         try (var classLoader = classLoader()) {
             String vineFlowerLogDir = PublicProperties.vineFlowerLogDir();
             PrintStream printStream = switch(vineFlowerLogDir) {
@@ -56,43 +66,67 @@ public class RemoteVineFlowerProvider implements DecompilerProvider {
                 case "/dev/stderr" -> System.err;
                 default -> {
                     Path logFile = Path.of(vineFlowerLogDir).resolve(
-                            dirOut.getFileName() + "-" + UUID.randomUUID().toString().substring(24) + ".txt.gz"
+                            dirOut.getFileName() + "-" + UUID.randomUUID().toString().substring(24) + ".txt"
                     );
                     LOGGER.info("Decompile log for {} will be dumped into {}", dirOut, logFile);
                     Files.createDirectories(logFile.getParent());
-                    yield new PrintStream(new GZIPOutputStream(Files.newOutputStream(logFile)));
+                    yield new PrintStream(Files.newOutputStream(logFile));
                 }
             };
 
-            final Object[] arguments = {
+            final List<?> arguments = List.of(
                     FileUtils.pathToFile(jarIn),
                     classpath.stream().map(FileUtils::pathToFile).toList(),
                     FileUtils.pathToFile(dirOut),
                     printStream
-            };
+            );
 
-            var thread = Thread.ofVirtual().name("vineflower-instance-" + THREAD_ID).unstarted(() -> {
+            // CPU-consuming task, requiring a platform thread
+            var thread = THREAD_BUILDER.unstarted(() -> {
                 var lookup = MethodHandles.lookup();
                 try {
-                    Class<?> clazz = Class.forName("xland.ioutils.xdecompiler.decompile.vineflower.VineFlowerEntrypoint");
-                    MethodHandle mh = lookup.findConstructor(clazz, MethodType.methodType(void.class, File.class, Collection.class, File.class, PrintStream.class));
-                    mh.invokeWithArguments(arguments);
+                    MethodHandle mh = lookup.findConstructor(
+                            Class.forName(
+                                    VF_ENTRYPOINT,
+                                    true,
+                                    Thread.currentThread().getContextClassLoader()
+                            ),
+                            MethodType.methodType(void.class, File.class, Collection.class, File.class, PrintStream.class)
+                    );
+                    Runnable runnable = (Runnable) mh.invokeWithArguments(arguments);
+                    runnable.run();
                 } catch (Throwable t) {
                     throw new RuntimeException("Failed to decompile", t);
                 }
             });
             thread.setContextClassLoader(classLoader);
             thread.start();
-        } catch (IOException e) {
+            thread.join();  // The classloader won't be closed until finished
+        } catch (IOException | InterruptedException e) {
             CommonUtils.sneakyThrow(e);
         }
     }
 
     private static URLClassLoader classLoader() throws IOException {
+        // Read VineFlowerEntrypoint class
+        final byte[] clazz;
+        try (var inputStream = RemoteVineFlowerProvider.class.getClassLoader().getResourceAsStream(VF_ENTRYPOINT.replace('.', '/').concat(".class"))) {
+            Objects.requireNonNull(inputStream, VF_ENTRYPOINT);
+            clazz = inputStream.readAllBytes();
+        }
+
         // Download vineflower
         var vineflower = downloadVF();
         var maybeParent = Thread.currentThread().getContextClassLoader().getParent();
-        return new URLClassLoader(new URL[]{vineflower.toUri().toURL()}, maybeParent);
+        return new URLClassLoader(new URL[]{vineflower.toUri().toURL()}, maybeParent) {
+            @Override
+            protected Class<?> findClass(String name) throws ClassNotFoundException {
+                if (VF_ENTRYPOINT.equals(name)) {
+                    return defineClass(name, clazz, 0, clazz.length);
+                }
+                return super.findClass(name);
+            }
+        };
     }
 
     private static Path downloadVF() throws IOException, HashMismatchException {

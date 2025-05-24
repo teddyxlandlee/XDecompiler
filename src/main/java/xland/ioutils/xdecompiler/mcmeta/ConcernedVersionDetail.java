@@ -21,7 +21,6 @@ import org.jetbrains.annotations.Nullable;
 import xland.ioutils.xdecompiler.mcmeta.libraries.Library;
 import xland.ioutils.xdecompiler.mcmeta.libraries.MavenArtifact;
 import xland.ioutils.xdecompiler.util.ConcurrentUtils;
-import xland.ioutils.xdecompiler.util.PublicProperties;
 
 import java.net.MalformedURLException;
 import java.nio.file.Path;
@@ -59,7 +58,7 @@ public record ConcernedVersionDetail(RemoteFile clientJar, RemoteFile serverJar,
 
     public Collection<Path> downloadLibrariesAsync(Path repo) {
         Collection<Path> paths = new CopyOnWriteArrayList<>();
-        ConcurrentUtils.run("download-libraries", PublicProperties.downloadThreads(), service -> libraries().stream()
+        ConcurrentUtils.runVirtual("download-libraries", service -> libraries().stream()
                 .map(lib -> CompletableFuture.supplyAsync(() -> lib.getOrDownload(repo), service))
                 .map(c -> c.thenAccept(paths::add))
         );

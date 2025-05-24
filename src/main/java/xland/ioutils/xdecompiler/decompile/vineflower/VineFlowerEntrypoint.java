@@ -34,7 +34,7 @@ public record VineFlowerEntrypoint(File jarIn, Collection<File> classpath, File 
                         "iec", 1,
                         "iib", 1,
                         "bsm", 1,
-                        "log", "TRACE"
+                        "log", "INFO"
                 )
                 .libraries(classpath.toArray(File[]::new))
                 .logger(new PrintStreamLogger(logStream))

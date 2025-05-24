@@ -31,17 +31,19 @@ public class PublicProperties {
             LOGGER.error("Failed to load public properties. Using built-in defaults (may not be up-to-date)", e);
             // Constant property values in this file are stubs like this
         }
-        System.getProperties().putAll(p);
+        p.forEach((k, v) -> System.getProperties().putIfAbsent(k, v));
     }
 
     public static String versionManifestUrl() {
         return System.getProperty("xdecompiler.download.mc.manifest", "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json");
     }
 
+    @Deprecated(forRemoval = true)
     public static int downloadThreads() {
         return Integer.getInteger("xdecompiler.threads.download", 4);
     }
 
+    @Deprecated(forRemoval = true)
     public static int mappingThreads() {
         return Integer.getInteger("xdecompiler.threads.mapping", 6);
     }

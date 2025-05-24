@@ -66,7 +66,7 @@ public interface MappingProvider extends Identified {
         CopyOnWriteArrayList<MappingTreeView> treeViews = new CopyOnWriteArrayList<>();
         CopyOnWriteArrayList<MappingProvider> mappingsToRemap = new CopyOnWriteArrayList<>();
 
-        ConcurrentUtils.run("mapping-provider", PublicProperties.mappingThreads(), executors -> map.values().stream()
+        ConcurrentUtils.runVirtual("mapping-provider", executors -> map.values().stream()
                 .map(p -> CompletableFuture.supplyAsync(() -> {
                     try {
                         final MappingTreeView treeView = p.prepare(classMemberInfoPool, versionMeta, args.getOrDefault(p.id(), ""));

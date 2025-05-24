@@ -101,7 +101,7 @@ public class JarMerger implements AutoCloseable {
 
         boolean mergeSuccess;
         Throwable mergeFailure = null;
-        try (ExecutorService service = ConcurrentUtils.namedVirtualThreadExecutor("jar-merger", 2)) {
+        try (ExecutorService service = ConcurrentUtils.namedVirtualThreadExecutor("jar-merger")) {
             service.submit(() -> readToMap(inputClient, entriesClient, outputResources));
             service.submit(() -> readToMap(inputServer, entriesServer, null));
             service.shutdown();

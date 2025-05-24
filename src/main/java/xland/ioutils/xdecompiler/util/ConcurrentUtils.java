@@ -15,6 +15,8 @@
  */
 package xland.ioutils.xdecompiler.util;
 
+import org.jetbrains.annotations.Contract;
+
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -23,9 +25,29 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 
 public class ConcurrentUtils {
-    public static ExecutorService namedVirtualThreadExecutor(String prefix, int threadCount) {
-        ThreadFactory factory = Thread.ofVirtual().name(prefix + '-').factory();
-        return Executors.newFixedThreadPool(threadCount, factory);
+    public static ExecutorService namedVirtualThreadExecutor(String prefix) {
+        return Executors.newThreadPerTaskExecutor(ExecutorServiceFactory.VIRTUAL.threadFactory(prefix));
+    }
+
+    public static ExecutorService namedPlatformThreadExecutor(String prefix, int threadCount) {
+        return ExecutorServiceFactory.PLATFORM.newService(prefix, threadCount);
+    }
+
+    @FunctionalInterface
+    private interface ExecutorServiceFactory {
+        Thread.Builder threadBuilder();
+
+        default ThreadFactory threadFactory(String prefix) {
+            return threadBuilder().name(prefix + '-', 1).factory();
+        }
+
+        @Contract("_, _ -> new")
+        default ExecutorService newService(String prefix, int threadCount) {
+            return Executors.newFixedThreadPool(threadCount, threadFactory(prefix));
+        }
+
+        ExecutorServiceFactory PLATFORM = Thread::ofPlatform;
+        ExecutorServiceFactory VIRTUAL = Thread::ofVirtual;
     }
 
     private static class ThrowableHolder {
@@ -39,9 +61,16 @@ public class ConcurrentUtils {
         }
     }
 
+    public static void runVirtual(String prefix, Function<ExecutorService, Stream<CompletableFuture<Void>>> streamSupplier) {
+        run0(namedVirtualThreadExecutor(prefix), streamSupplier);
+    }
+
+    public static void runPlatform(String prefix, int threadCount, Function<ExecutorService, Stream<CompletableFuture<Void>>> streamSupplier) {
+        run0(namedPlatformThreadExecutor(prefix, threadCount), streamSupplier);
+    }
+
     @SuppressWarnings("unchecked")
-    public static <T extends Throwable> void run(String prefix, int threadCount, Function<ExecutorService, Stream<CompletableFuture<Void>>> streamSupplier) throws T {
-        final ExecutorService service = namedVirtualThreadExecutor(prefix, threadCount);
+    private static <T extends Throwable> void run0(ExecutorService service, Function<ExecutorService, Stream<CompletableFuture<Void>>> streamSupplier) throws T {
         ThrowableHolder throwableHolder = new ThrowableHolder();
 
         try {
