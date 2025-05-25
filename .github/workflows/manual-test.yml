@@ -1,0 +1,46 @@
+name: Manual Test
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Make gradlew executable
+        run: chmod +x gradlew
+
+      - name: Build project
+        run: ./gradlew build
+
+      - name: Prepare artifacts directory
+        run: mkdir -p artifacts
+
+      - name: Copy JAR to artifacts
+        run: cp build/libs/XDecompiler-*-fat.jar artifacts/
+
+      - name: Run decompiler
+        working-directory: ./artifacts
+        run: java -Dxdecompiler.internal.debug=6 -Dxdecompiler.internal.tempdirs.override=temp -Dxdecompiler.vineflower.log.dir=/dev/stdout -jar XDecompiler-*-fat.jar --mappings mojmaps 1.21.5
+
+      - name: Zip output with encryption
+        working-directory: ./artifacts
+        env:
+          ZIP_PASSWORD: ${{ secrets.TEST_ZIP_PASS }}
+        run: |
+          zip -r -P "$ZIP_PASSWORD" out.zip out/
+
+      - name: Upload encrypted output
+        uses: actions/upload-artifact@v4
+        with:
+          name: encrypted-out
+          path: artifacts/out.zip
+          retention-days: 1
