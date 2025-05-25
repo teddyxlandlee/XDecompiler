@@ -22,7 +22,7 @@ jobs:
         run: ./gradlew build
 
       - name: Prepare artifacts directory
-        run: mkdir -p artifacts
+        run: mkdir -p artifacts artifacts/temp
 
       - name: Copy JAR to artifacts
         run: cp build/libs/XDecompiler-*-fat.jar artifacts/
