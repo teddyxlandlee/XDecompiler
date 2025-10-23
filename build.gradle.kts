@@ -24,11 +24,6 @@ tasks.withType(JavaCompile::class).configureEach {
 
 tasks.shadowJar {
     archiveClassifier.set("fat")
-//    dependsOn("compileVineflowerDecompilerJava")
-}
-
-tasks.shadowJar.configure {
-//    from(vineflowerDecompiler.output.dirs)
 }
 
 tasks.build {
@@ -63,11 +58,7 @@ dependencies {
     runtimeOnly("org.slf4j:slf4j-simple:2.0.17")
     compileOnly("org.jetbrains:annotations:26.0.2")
 
-    testCompileOnly("net.fabricmc:stitch:0.6.2")
-
-    // To construct vineflower instance
-    //add("vineflowerDecompilerCompileOnly", "org.vineflower:vineflower:1.11.1")
-    compileOnly("org.vineflower:vineflower:1.11.1")
+    testCompileOnly("org.vineflower:vineflower:1.11.1")
 }
 
 tasks.processResources {
@@ -88,9 +79,4 @@ tasks.jar {
     	"Implementation-Timestamp" to "${ZonedDateTime.now(ZoneId.of("+08:00")).withNano(0)}",
     	"Automatic-Module-Name" to "xland.ioutils.xdecompiler",
     )
-//    dependsOn("compileVineflowerDecompilerJava")
-}
-
-tasks.jar.configure {
-//    from(vineflowerDecompiler.output.dirs)
 }
