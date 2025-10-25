@@ -30,17 +30,16 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
 public class FileUtils {
-
     public static void deleteRecursively(Path root, boolean retainRoot) throws IOException {
         Files.walkFileTree(root, new SimpleFileVisitor<>() {
             @Override
-            public @NotNull FileVisitResult visitFile(Path file, @NotNull BasicFileAttributes attrs) throws IOException {
+            public @NotNull FileVisitResult visitFile(@NotNull Path file, @NotNull BasicFileAttributes attrs) throws IOException {
                 Files.delete(file);
                 return FileVisitResult.CONTINUE;
             }
 
             @Override
-            public @NotNull FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
+            public @NotNull FileVisitResult postVisitDirectory(@NotNull Path dir, IOException exc) throws IOException {
                 if (retainRoot && root.equals(dir)) return FileVisitResult.CONTINUE;
                 Files.delete(dir);
                 return FileVisitResult.CONTINUE;
@@ -57,7 +56,6 @@ public class FileUtils {
         try (ZipInputStream zis = new ZipInputStream(Files.newInputStream(archive))) {
             ZipEntry entry;
             while ((entry = zis.getNextEntry()) != null) {
-                //LOGGER.debug("Entry: {}", entry);
                 if (entry.isDirectory()) {
                     Files.createDirectories(outDir.resolve(entry.getName()));
                     continue;
@@ -66,15 +64,6 @@ public class FileUtils {
                 Files.createDirectories(resolve.getParent());
                 Files.copy(zis, resolve);
             }
-        }
-    }
-
-    @Deprecated
-    public static void symlink(Path from, Path to) throws IOException {
-        try {
-            Files.createSymbolicLink(to, from);
-        } catch (UnsupportedOperationException e) {
-            Files.copy(from, to);
         }
     }
 

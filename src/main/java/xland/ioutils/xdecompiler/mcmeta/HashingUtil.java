@@ -50,10 +50,10 @@ public class HashingUtil {
     public static boolean isSame(String s, byte[] b) {
         if (b.length << 1 != s.length()) return false;
         int k = 0;
-        for (int x : b) {
-            if (s.charAt(k++) != HEXMAP.charAt((x >> 4) & 15))
+        for (byte x : b) {
+            if (s.charAt(k++) != HEXMAP.charAt((x >>> 4) & 0xF))
                 return false;
-            if (s.charAt(k++) != HEXMAP.charAt(x & 15))
+            if (s.charAt(k++) != HEXMAP.charAt(x & 0xF))
                 return false;
         }
         return true;
@@ -61,9 +61,9 @@ public class HashingUtil {
 
     public static String stringify(byte[] b) {
         StringBuilder sb = new StringBuilder(32);
-        for (byte c : b) {
-            int d = c & 0xff;
-            sb.append(String.format("%02x", d));
+        for (byte x : b) {
+            sb.append(HEXMAP.charAt((x >>> 4) & 0xf));
+            sb.append(HEXMAP.charAt(x & 0xf));
         }
         return sb.toString();
     }

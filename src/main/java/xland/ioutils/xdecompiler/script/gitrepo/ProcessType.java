@@ -43,11 +43,11 @@ enum ProcessType implements Identified {
         this.allowsExternal = allowsExternal;
     }
 
-    void write(Appendable appendable, @Nullable String commandOverride, @Nullable String[] args) throws IOException {
+    void write(Appendable appendable, @Nullable String commandOverride, String @Nullable[] args) throws IOException {
         this.write(appendable, commandOverride, args, false);
     }
 
-    private void write(Appendable appendable, @Nullable String commandOverride, @Nullable String[] args, boolean internal) throws IOException {
+    private void write(Appendable appendable, @Nullable String commandOverride, String @Nullable[] args, boolean internal) throws IOException {
         if (!internal && !allowsExternal)
             throw new IllegalStateException("External call to " + this + ", which is not allowed!");
 

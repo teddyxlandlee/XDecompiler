@@ -15,6 +15,7 @@
  */
 package xland.ioutils.xdecompiler.util;
 
+import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.random.RandomGenerator;
@@ -57,7 +58,7 @@ public class CommonUtils {
     }
 
     private static final char[] CHAR_POOL_NANO_ID = "0123456789abcdefghijklmnopqrstuvwxyz".toCharArray();
-    private static final RandomGenerator RANDOM_NANO_ID = RandomGenerator.of("SecureRandom");
+    private static final RandomGenerator RANDOM_NANO_ID = new SecureRandom();
     private static final int NANO_ID_DEFAULT_LEN = 16;
 
     public static String newNanoID(int len) {

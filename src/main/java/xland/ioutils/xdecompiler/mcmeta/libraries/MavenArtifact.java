@@ -15,6 +15,7 @@
  */
 package xland.ioutils.xdecompiler.mcmeta.libraries;
 
+import org.jetbrains.annotations.NotNull;
 import xland.ioutils.xdecompiler.util.CommonUtils;
 
 import java.net.MalformedURLException;
@@ -83,12 +84,12 @@ public record MavenArtifact(String group, String name, String version, String cl
             return uri.toURL();
         } catch (URISyntaxException | MalformedURLException e) {
             CommonUtils.sneakyThrow(e);
-            throw new AssertionError();
+            throw new IncompatibleClassChangeError();
         }
     }
 
     @Override
-    public String toString() {
+    public @NotNull String toString() {
         StringBuilder sb = new StringBuilder();
         sb.append(group).append(':').append(name).append(':').append(version);
         if (classifier != null)

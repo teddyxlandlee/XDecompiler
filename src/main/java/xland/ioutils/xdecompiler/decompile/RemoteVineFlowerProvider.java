@@ -37,16 +37,8 @@ import java.util.*;
 public class RemoteVineFlowerProvider implements DecompilerProvider {
     private static final Logger LOGGER = LogUtils.getLogger();
 
-    private static final String VF_ENTRYPOINT_CLASS = "xland.ioutils.xdecompiler.decompile.vineflower.VineFlowerEntrypoint";
+    private static final String VF_ENTRYPOINT_CLASS = "xland.ioutils.xdecompiler.decompile.RemoteVineFlowerProvider$1-VineFlowerEntrypoint";
     private static final String VF_ENTRYPOINT_NAME = "decompile";
-//    private static final MethodType VF_ENTRYPOINT_TYPE = Type.getMethodDescriptor(
-//            Type.VOID_TYPE,
-//            /* arguments: */
-//            Type.getType(File.class),               // jarIn
-//            Type.getType(Collection.class),         // classpath, Collection<File>
-//            Type.getType(File.class),               // dirOut
-//            Type.getType(PrintStream.class)         // logStream
-//    );
     private static final MethodType VF_ENTRYPOINT_TYPE = MethodType.methodType(
             void.class,
             /* arguments: */
@@ -102,20 +94,16 @@ public class RemoteVineFlowerProvider implements DecompilerProvider {
             // CPU-consuming task, requiring a platform thread
             @SuppressWarnings("UnnecessaryLocalVariable")   // make it a local var, in case classloading issue
             final MethodType entrypointDesc = VF_ENTRYPOINT_TYPE;
+
             var thread = THREAD_BUILDER.unstarted(() -> {
                 var lookup = MethodHandles.lookup();
+
                 try {
-                    MethodHandle mh = lookup.findStatic(
-                            Class.forName(
-                                    VF_ENTRYPOINT_CLASS,
-                                    true,
-                                    Thread.currentThread().getContextClassLoader()
-                            ),
-                            VF_ENTRYPOINT_NAME,
-                            entrypointDesc
-                    );
-                    Runnable runnable = (Runnable) mh.invokeWithArguments(arguments);
-                    runnable.run();
+                    Class<?> c = Class.forName(VF_ENTRYPOINT_CLASS, true, Thread.currentThread().getContextClassLoader());
+
+                    lookup = MethodHandles.privateLookupIn(c, lookup);
+                    MethodHandle mh = lookup.findStatic(c, VF_ENTRYPOINT_NAME, entrypointDesc);
+                    mh.invokeWithArguments(arguments);
                 } catch (Throwable t) {
                     throw new RuntimeException("Failed to decompile", t);
                 }
@@ -225,6 +213,7 @@ public class RemoteVineFlowerProvider implements DecompilerProvider {
 
             mv.iconst(1);
             mv.newarray(Type.getType(File.class));
+            mv.dup();
             mv.iconst(0);
             mv.load(INDEX_JAR_IN, InstructionAdapter.OBJECT_TYPE);
             mv.astore(InstructionAdapter.OBJECT_TYPE);
@@ -246,8 +235,8 @@ public class RemoteVineFlowerProvider implements DecompilerProvider {
 
             mv.load(INDEX_CLASSPATH, InstructionAdapter.OBJECT_TYPE);
             mv.iconst(0);
-            mv.newarray(t_fileArray);
-            mv.invokeinterface("java/lang/Collection", "toArray", "([Ljava/lang/Object;)[Ljava/lang/Object;");
+            mv.newarray(t_fileArray.getElementType());
+            mv.invokeinterface("java/util/Collection", "toArray", "([Ljava/lang/Object;)[Ljava/lang/Object;");
             mv.checkcast(t_fileArray);
             callBuilder(mv, "libraries", t_fileArray);
 
@@ -261,6 +250,8 @@ public class RemoteVineFlowerProvider implements DecompilerProvider {
 
             mv.invokevirtual(T_DECOMPILER.getInternalName(), "decompile", "()V", false);
 
+            mv.areturn(Type.VOID_TYPE);
+
             mv.visitMaxs(-1, -1);
             mv.visitEnd();
         }
@@ -270,7 +261,7 @@ public class RemoteVineFlowerProvider implements DecompilerProvider {
         private static final String HANDLE_BOOSTRAP_NAME = "makeArray";
         private static final String HANDLE_BOOTSTRAP_DESC = MethodType.methodType(
                 Object[].class,
-                MethodHandles.Lookup.class, String.class, MethodType.class, Object[].class
+                MethodHandles.Lookup.class, String.class, Class.class, Object[].class
         ).descriptorString();
 
         private static void callBuilder(InstructionAdapter mv, String methodName, Type... paramTypes) {
@@ -278,5 +269,20 @@ public class RemoteVineFlowerProvider implements DecompilerProvider {
         }
 
         private static final byte[] CLASS_FILE_ORIGINAL = createClass();
+
+        static {
+            xland.ioutils.xdecompiler.util.DebugUtils.log(6, l -> {
+                try {
+                    final byte[] byteCode = getBytecode();
+                    var dumpedPath = TempDirs.get().createFile(".class");
+                    try (BufferedOutputStream outputStream = new BufferedOutputStream(Files.newOutputStream(dumpedPath))) {
+                        outputStream.write(byteCode);
+                    }
+                    l.info("Dumped {} into {}", VF_ENTRYPOINT_CLASS, dumpedPath);
+                } catch (Exception e) {
+                    l.warn("Failed to dump class {}", VF_ENTRYPOINT_CLASS);
+                }
+            });
+        }
     }
 }

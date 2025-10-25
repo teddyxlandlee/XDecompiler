@@ -213,16 +213,21 @@ public record Main(String version, DecompilerProvider decompilerProvider,
                 .defaultsTo(Path.of("out", "resources"));
         var help = parser.accepts("help").forHelp();
         if (args.length == 0) {
-            try { parser.printHelpOn(System.out); } catch (IOException e) {
+            try {
+                parser.printHelpOn(System.out);
+            } catch (IOException e) {
                 CommonUtils.sneakyThrow(e);
-            } return ;
+            }
+            return;
         } else if ("--run-script".equals(args[0])) {
             final int l = args.length - 1;
             String[] newArgs = new String[l];
             System.arraycopy(args, 1, newArgs, 0, l);
             try {
                 xland.ioutils.xdecompiler.script.Script.main(newArgs);
-            } catch (Throwable t) { CommonUtils.sneakyThrow(t); }
+            } catch (Throwable t) {
+                CommonUtils.sneakyThrow(t);
+            }
             return;
         }
 
@@ -277,6 +282,6 @@ public record Main(String version, DecompilerProvider decompilerProvider,
 
     static {
         // Actually to load PublicProperties class
-        PublicProperties.LOGGER.info("Initializing public properties");
+        PublicProperties.LOGGER.debug("Initializing public properties");
     }
 }
