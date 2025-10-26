@@ -211,18 +211,21 @@ public class RemoteVineFlowerProvider implements DecompilerProvider {
                     false
             );
 
+            mv.load(INDEX_JAR_IN, InstructionAdapter.OBJECT_TYPE);
             mv.iconst(1);
             mv.newarray(Type.getType(File.class));
-            mv.dup();
+            mv.dupX1(); // [File jarIn [File
+            mv.swap();  // [File [File jarIn
             mv.iconst(0);
-            mv.load(INDEX_JAR_IN, InstructionAdapter.OBJECT_TYPE);
+            mv.swap();  // [File [File 0 jarIn
             mv.astore(InstructionAdapter.OBJECT_TYPE);
-
             callBuilder(mv, "inputs", t_fileArray);
 
+            mv.load(INDEX_DIR_OUT, InstructionAdapter.OBJECT_TYPE);
             mv.anew(t_directoryResultSaver);
             mv.dup();
-            mv.load(INDEX_DIR_OUT, InstructionAdapter.OBJECT_TYPE);
+            mv.dup2X1();
+            mv.pop2();
             mv.invokespecial(t_directoryResultSaver.getInternalName(), "<init>", "(Ljava/io/File;)V", false);
             callBuilder(mv, "output", Type.getType("Lorg/jetbrains/java/decompiler/main/extern/IResultSaver;"));
 
@@ -240,9 +243,11 @@ public class RemoteVineFlowerProvider implements DecompilerProvider {
             mv.checkcast(t_fileArray);
             callBuilder(mv, "libraries", t_fileArray);
 
+            mv.load(INDEX_LOG_STREAM, InstructionAdapter.OBJECT_TYPE);
             mv.anew(t_printStreamLogger);
             mv.dup();
-            mv.load(INDEX_LOG_STREAM, InstructionAdapter.OBJECT_TYPE);
+            mv.dup2X1();
+            mv.pop2();
             mv.invokespecial(t_printStreamLogger.getInternalName(), "<init>", "(Ljava/io/PrintStream;)V", false);
             callBuilder(mv, "logger", Type.getType("Lorg/jetbrains/java/decompiler/main/extern/IFernflowerLogger;"));
 

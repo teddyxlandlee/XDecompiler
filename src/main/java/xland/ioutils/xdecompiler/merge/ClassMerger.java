@@ -153,32 +153,32 @@ public class ClassMerger {
             nodeOut.visibleTypeAnnotations.addAll(nodeC.visibleTypeAnnotations);
         }
 
-        List<String> itfs = CommonUtils.mergePreserveOrder(nodeC.interfaces, nodeS.interfaces);
+        List<String> interfaces = CommonUtils.mergePreserveOrder(nodeC.interfaces, nodeS.interfaces);
         nodeOut.interfaces = new ArrayList<>();
 
-        List<String> clientItfs = new ArrayList<>();
-        List<String> serverItfs = new ArrayList<>();
+        List<String> clientInterfaces = new ArrayList<>();
+        List<String> serverInterfaces = new ArrayList<>();
 
-        for (String s : itfs) {
+        for (String s : interfaces) {
             boolean nc = nodeC.interfaces.contains(s);
             boolean ns = nodeS.interfaces.contains(s);
             nodeOut.interfaces.add(s);
             if (nc && !ns) {
-                clientItfs.add(s);
+                clientInterfaces.add(s);
             } else if (ns && !nc) {
-                serverItfs.add(s);
+                serverInterfaces.add(s);
             }
         }
 
-        if (!clientItfs.isEmpty() || !serverItfs.isEmpty()) {
+        if (!clientInterfaces.isEmpty() || !serverInterfaces.isEmpty()) {
             AnnotationVisitor envInterfaces = nodeOut.visitAnnotation(ITF_LIST_DESCRIPTOR, false);
             AnnotationVisitor eiArray = envInterfaces.visitArray("value");
 
-            if (!clientItfs.isEmpty()) {
-                visitItfAnnotation(eiArray, "CLIENT", clientItfs);
+            if (!clientInterfaces.isEmpty()) {
+                visitItfAnnotation(eiArray, "CLIENT", clientInterfaces);
             }
-            if (!serverItfs.isEmpty()) {
-                visitItfAnnotation(eiArray, "SERVER", serverItfs);
+            if (!serverInterfaces.isEmpty()) {
+                visitItfAnnotation(eiArray, "SERVER", serverInterfaces);
             }
             eiArray.visitEnd();
             envInterfaces.visitEnd();

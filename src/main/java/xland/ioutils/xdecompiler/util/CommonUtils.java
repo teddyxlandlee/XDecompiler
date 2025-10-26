@@ -15,33 +15,95 @@
  */
 package xland.ioutils.xdecompiler.util;
 
+import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 import java.util.random.RandomGenerator;
 
 public class CommonUtils {
-    public static List<String> mergePreserveOrder(List<String> first, List<String> second) {
-        List<String> out = new ArrayList<>();
-        int i = 0;
-        int j = 0;
+    public static <E> List<E> mergePreserveOrder(List<? extends E> first, List<? extends E> second) {
+        if (first instanceof RandomAccess && second instanceof RandomAccess) {
+            return mergePreserveOrderRA(first, second);
+        } else {
+            return mergePreserveOrderNRA(first, second);
+        }
+    }
+
+    private static <E> List<E> mergePreserveOrderRA(List<? extends E> first, List<? extends E> second) {
+        List<E> out = new ArrayList<>();
+        Set<E> firstSet = new HashSet<>(first);
+        Set<E> secondSet = new HashSet<>(second);
+
+        int i = 0, j = 0;
 
         while (i < first.size() || j < second.size()) {
-            while (i < first.size() && j < second.size()
-                    && first.get(i).equals(second.get(j))) {
+            // same index, same element
+            while (i < first.size() && j < second.size() &&
+                    Objects.equals(first.get(i), second.get(j))) {
                 out.add(first.get(i));
                 i++;
                 j++;
             }
 
-            while (i < first.size() && !second.contains(first.get(i))) {
+            // first-only
+            while (i < first.size() && !secondSet.contains(first.get(i))) {
                 out.add(first.get(i));
                 i++;
             }
 
-            while (j < second.size() && !first.contains(second.get(j))) {
+            // second-only
+            while (j < second.size() && !firstSet.contains(second.get(j))) {
                 out.add(second.get(j));
                 j++;
+            }
+
+            // shared, unmatched index
+            if (i < first.size() && j < second.size() &&
+                    !Objects.equals(first.get(i), second.get(j))) {
+                // add the first one, arbitrarily
+                out.add(first.get(i));
+                i++;
+            }
+        }
+
+        return out;
+    }
+
+    private static <E> List<E> mergePreserveOrderNRA(List<? extends E> first, List<? extends E> second) {
+        List<E> out = new ArrayList<>();
+        Set<E> firstSet = new HashSet<>(first);
+        Set<E> secondSet = new HashSet<>(second);
+
+        ListIterator<? extends E> firstIter = first.listIterator();
+        ListIterator<? extends E> secondIter = second.listIterator();
+
+        while (firstIter.hasNext() && secondIter.hasNext()) {
+            E firstElem = firstIter.next();
+            E secondElem = secondIter.next();
+
+            if (Objects.equals(firstElem, secondElem)) {
+                out.add(firstElem);
+            } else {
+                // rollback
+                firstIter.previous();
+                secondIter.previous();
+                break;
+            }
+        }
+
+        // remaining of first
+        while (firstIter.hasNext()) {
+            E elem = firstIter.next();
+            if (!secondSet.contains(elem)) {
+                out.add(elem);
+            }
+        }
+
+        // remaining of second
+        while (secondIter.hasNext()) {
+            E elem = secondIter.next();
+            if (!firstSet.contains(elem)) {
+                out.add(elem);
             }
         }
 
@@ -57,7 +119,7 @@ public class CommonUtils {
         throw (T) t;
     }
 
-    private static final char[] CHAR_POOL_NANO_ID = "0123456789abcdefghijklmnopqrstuvwxyz".toCharArray();
+    private static final byte[] CHAR_POOL_NANO_ID = "0123456789abcdefghijklmnopqrstuvwxyz".getBytes(StandardCharsets.ISO_8859_1);
     private static final RandomGenerator RANDOM_NANO_ID = new SecureRandom();
     private static final int NANO_ID_DEFAULT_LEN = 16;
 

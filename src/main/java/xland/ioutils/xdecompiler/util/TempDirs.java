@@ -23,7 +23,8 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-public class TempDirs implements Closeable {
+@SuppressWarnings("ClassCanBeRecord")
+public final class TempDirs implements Closeable {
     private static final Logger LOGGER = LogUtils.getLogger();
     private final Path baseDir;
 
@@ -86,7 +87,7 @@ public class TempDirs implements Closeable {
             return Files.createTempDirectory(CommonUtils.newNanoID());
         } catch (IOException e) {
             CommonUtils.sneakyThrow(e);
-            throw new AssertionError();
+            throw new IncompatibleClassChangeError();
         }
     }
 

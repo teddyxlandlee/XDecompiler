@@ -40,8 +40,9 @@ public class FileUtils {
 
             @Override
             public @NotNull FileVisitResult postVisitDirectory(@NotNull Path dir, IOException exc) throws IOException {
-                if (retainRoot && root.equals(dir)) return FileVisitResult.CONTINUE;
-                Files.delete(dir);
+                if (!(retainRoot && root.equals(dir))) {
+                    Files.delete(dir);
+                }
                 return FileVisitResult.CONTINUE;
             }
         });

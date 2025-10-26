@@ -148,7 +148,7 @@ public record Main(String version, DecompilerProvider decompilerProvider,
                             return Map.entry(path, providerId);
                         } catch (IOException e) {
                             CommonUtils.sneakyThrow(e);
-                            throw new AssertionError(); // unreachable
+                            throw new IncompatibleClassChangeError(); // unreachable
                         }
                     }, executors))
                     .map(cf -> cf.thenAcceptAsync(pair -> {
@@ -233,9 +233,12 @@ public record Main(String version, DecompilerProvider decompilerProvider,
 
         final OptionSet parsed = parser.parse(args);
         if (parsed.has(help)) {
-            try { parser.printHelpOn(System.out); } catch (IOException e) {
+            try {
+                parser.printHelpOn(System.out);
+            } catch (IOException e) {
                 CommonUtils.sneakyThrow(e);
-            } return ;
+            }
+            return;
         }
 
         final String version = parsed.valueOf(versionId);
@@ -258,13 +261,13 @@ public record Main(String version, DecompilerProvider decompilerProvider,
         if (!mappingProviders.keySet().containsAll(mappingArgs.keySet())) {
             LOGGER.error("Some of given mapping providers are not available. Available providers are: {}",
                     mappingProviders.keySet());
-            return ;
+            return;
         }
         mappingProviders = mappingArgs.keySet().stream()
                 .collect(Collectors.toMap(Function.identity(), mappingProviders::get));
         if (mappingProviders.isEmpty()) {
             LOGGER.error("No available mapping provider");
-            return ;
+            return;
         }
 
         Path libCache = parsed.valueOf(libCache0);

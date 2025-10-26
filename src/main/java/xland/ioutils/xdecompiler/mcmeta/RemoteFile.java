@@ -66,7 +66,7 @@ public record RemoteFile(URL url, String hash, @Nullable Long size, Supplier<Mes
 
     public InputStream openFilteredInputStream() throws IOException {
         DigestInputStream is = new DigestInputStream(url.openStream(), mdFactory().get());
-        if (!xland.ioutils.xdecompiler.util.DebugUtils.flagged(0))
+        if (!xland.ioutils.xdecompiler.util.DebugUtils.flagged(0)) {
             return new FilterInputStream(is) {
                 @Override
                 public void close() throws IOException {
@@ -76,54 +76,56 @@ public record RemoteFile(URL url, String hash, @Nullable Long size, Supplier<Mes
                     throw new IOException("Hash mismatched", HashMismatchException.of(url.toString(), hash(), HashingUtil.stringify(b)));
                 }
             };  // don't check size, only hash
-        else return new FilterInputStream(is) {
-            long bytes;
-            boolean lock;
+        } else {
+            return new FilterInputStream(is) {
+                long bytes;
+                boolean lock;
 
-            @Override
-            public void close() throws IOException {
-                super.close();
-                byte[] h = null;
-                if ((size == null || size == bytes) && HashingUtil.isSame(hash(), (h = is.getMessageDigest().digest())))
-                    return;
-                final StringBuilder sb = new StringBuilder();
-                if (h == null) {
-                    h = is.getMessageDigest().digest();
-                    sb.append("Expected size (").append(size).append(") != actual size (").append(bytes).append("). ");
+                @Override
+                public void close() throws IOException {
+                    super.close();
+                    byte[] h = null;
+                    if ((size == null || size == bytes) && HashingUtil.isSame(hash(), (h = is.getMessageDigest().digest())))
+                        return;
+                    final StringBuilder sb = new StringBuilder();
+                    if (h == null) {
+                        h = is.getMessageDigest().digest();
+                        sb.append("Expected size (").append(size).append(") != actual size (").append(bytes).append("). ");
+                    }
+                    if (!HashingUtil.isSame(hash(), h))
+                        sb.append("Expected hash (").append(hash()).append(") != actual hash (").append(HashingUtil.stringify(h)).append("). ");
+
+                    throw new IOException("Size or hash mismatched", new HashMismatchException(sb.toString()));
                 }
-                if (!HashingUtil.isSame(hash(), h))
-                    sb.append("Expected hash (").append(hash()).append(") != actual hash (").append(HashingUtil.stringify(h)).append("). ");
 
-                throw new IOException("Size or hash mismatched", new HashMismatchException(sb.toString()));
-            }
+                @Override
+                public int read() throws IOException {
+                    final int read = super.read();
+                    if (!lock && read >= 0) bytes++;
+                    return read;
+                }
 
-            @Override
-            public int read() throws IOException {
-                final int read = super.read();
-                if (!lock && read >= 0) bytes++;
-                return read;
-            }
+                @Override
+                public int read(byte @NotNull [] b, int off, int len) throws IOException {
+                    boolean wasLock = lock;
+                    lock = true;
+                    return add(super.read(b, off, len), wasLock);
+                }
 
-            @Override
-            public int read(byte @NotNull [] b, int off, int len) throws IOException {
-                boolean wasLock = lock;
-                lock = true;
-                return add(super.read(b, off, len), wasLock);
-            }
+                private int add(int b, boolean wasLock) {
+                    if (wasLock) return b;
+                    bytes += b;
+                    lock = false;
+                    return b;
+                }
 
-            private int add(int b, boolean wasLock) {
-                if (wasLock) return b;
-                bytes += b;
-                lock = false;
-                return b;
-            }
-
-            @Override
-            public int read(byte @NotNull [] b) throws IOException {
-                boolean wasLock = lock;
-                lock = true;
-                return add(super.read(b), wasLock);
-            }
-        };
+                @Override
+                public int read(byte @NotNull [] b) throws IOException {
+                    boolean wasLock = lock;
+                    lock = true;
+                    return add(super.read(b), wasLock);
+                }
+            };
+        }
     }
 }

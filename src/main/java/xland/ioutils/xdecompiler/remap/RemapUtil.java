@@ -66,10 +66,11 @@ public class RemapUtil {
 
                         for (MappingTreeView.MethodVarMappingView localVariable : method.getVars()) {
                             final String s1 = localVariable.getName(toId);
-                            if (s1 != null)
+                            if (s1 != null) {
                                 acceptor.acceptMethodVar(methodIdentifier, localVariable.getLvIndex(),
-                                    localVariable.getStartOpIdx(), localVariable.getLvtRowIndex(),
-                                    s1);
+                                        localVariable.getStartOpIdx(), localVariable.getLvtRowIndex(),
+                                        s1);
+                            }
                         }
                     }
                 }

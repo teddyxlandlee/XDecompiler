@@ -160,8 +160,9 @@ public class JarMerger implements AutoCloseable {
                 if (isMinecraft && isClass) {
                     if (LOGGER.isDebugEnabled()) {
                         String cvr = ClassVersionUtil.classVersion1(result.data);
-                        if (cvr != null)
+                        if (cvr != null) {
                             LOGGER.debug("Merging {}, class version {}", result.path, cvr);
+                        }
                     }
                     byte[] data = result.data;
                     ClassReader reader = new ClassReader(data);

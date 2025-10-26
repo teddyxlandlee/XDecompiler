@@ -20,7 +20,7 @@ import java.util.ServiceLoader;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-public class ServiceProviders {
+public final class ServiceProviders {
     public static <T> Map<String, T> identified(Class<T> c, Function<T, String> idFactory) {
         return ServiceLoader.load(c).stream()
                 .map(ServiceLoader.Provider::get)
@@ -30,4 +30,6 @@ public class ServiceProviders {
     public static <T extends Identified> Map<String, T> identified(Class<T> c) {
         return identified(c, Identified::id);
     }
+
+    private ServiceProviders() {}
 }
