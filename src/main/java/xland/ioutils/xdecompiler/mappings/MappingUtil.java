@@ -18,11 +18,17 @@ package xland.ioutils.xdecompiler.mappings;
 import net.fabricmc.mappingio.MappingVisitor;
 import net.fabricmc.mappingio.adapter.ForwardingMappingVisitor;
 import net.fabricmc.mappingio.format.tiny.Tiny1FileReader;
+import net.fabricmc.mappingio.tree.MappingTreeView;
+import net.fabricmc.mappingio.tree.VisitOrder;
+import org.jetbrains.annotations.Nullable;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.URL;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -64,5 +70,45 @@ final class MappingUtil {
                 return super.visitMethod(srcName, srcDesc);
             }
         };
+    }
+
+    static final MappingTreeView EMPTY_MAPPING_TREE_VIEW = new EmptyMappingTreeView();
+
+    private static final class EmptyMappingTreeView implements MappingTreeView {
+        private EmptyMappingTreeView() {}
+
+        @Override
+        public @Nullable String getSrcNamespace() {
+            return null;
+        }
+
+        @Override
+        public List<String> getDstNamespaces() {
+            return Collections.emptyList();
+        }
+
+        @Override
+        public List<? extends MetadataEntryView> getMetadata() {
+            return Collections.emptyList();
+        }
+
+        @Override
+        public List<? extends MetadataEntryView> getMetadata(String key) {
+            return Collections.emptyList();
+        }
+
+        @Override
+        public Collection<? extends ClassMappingView> getClasses() {
+            return Collections.emptyList();
+        }
+
+        @Override
+        public @Nullable ClassMappingView getClass(String srcName) {
+            return null;
+        }
+
+        @Override
+        public void accept(MappingVisitor visitor, VisitOrder order) {
+        }
     }
 }

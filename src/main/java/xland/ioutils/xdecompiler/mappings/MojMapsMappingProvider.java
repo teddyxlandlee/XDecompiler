@@ -46,19 +46,29 @@ public class MojMapsMappingProvider implements MappingProvider {
         return "mojmaps";
     }
 
+    public static boolean isUnobfuscated(ConcernedVersionDetail detail) {
+        return xland.ioutils.xdecompiler.util.DebugUtils.flagged(7) || detail.isUnobfuscated();
+    }
+
     @Override
     @NotNull
     public MappingTreeView prepare(ClassMemberInfoPool classMembers, VersionManifest.VersionMeta versionMeta, String arg) throws IOException {
         final ConcernedVersionDetail detail = versionMeta.getOrFetchDetail();
 
+        if (isUnobfuscated(detail)) {
+            // as-is; we don't need to remap anymore
+            return MappingUtil.EMPTY_MAPPING_TREE_VIEW;
+        }
+
+        final RemoteFile clientMappings = detail.clientMappings(), serverMappings = detail.serverMappings();
+        if (clientMappings == null || serverMappings == null) {
+            throw new FileNotFoundException("official mappings are absent for " + versionMeta.id());
+        }
+
         MemoryMappingTree tree = new MemoryMappingTree();
         MappingVisitor visitor = tree;
         visitor = MappingUtil.classMemberFilter(visitor, classMembers);
         visitor = new MappingSourceNsSwitch(visitor, SOURCE_NAMESPACE);
-
-        final RemoteFile clientMappings = detail.clientMappings(), serverMappings = detail.serverMappings();
-        if (clientMappings == null || serverMappings == null)
-            throw new FileNotFoundException("official mappings are absent for " + versionMeta.id());
 
         read(clientMappings, visitor);
         read(serverMappings, visitor);
