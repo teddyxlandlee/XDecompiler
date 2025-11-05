@@ -38,7 +38,7 @@ import java.nio.file.Path;
 import java.util.*;
 import java.util.function.Predicate;
 
-public class DiffTwoScript extends Script {
+public final class DiffTwoScript extends Script {
     private static final Logger LOGGER = LogUtils.getLogger();
     private final String ver1, ver2;
     private final Path baseDir;

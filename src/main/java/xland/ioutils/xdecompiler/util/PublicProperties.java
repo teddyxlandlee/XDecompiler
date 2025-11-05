@@ -20,7 +20,7 @@ import org.slf4j.Logger;
 import java.io.IOException;
 import java.util.Properties;
 
-public class PublicProperties {
+public final class PublicProperties {
     public static final Logger LOGGER = LogUtils.getLogger();
 
     static {
@@ -67,4 +67,6 @@ public class PublicProperties {
     public static String vineFlowerLogDir() {
         return System.getProperty("xdecompiler.vineflower.log.dir", "logs");
     }
+
+    private PublicProperties() {}
 }

@@ -34,7 +34,7 @@ import java.util.List;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
-public class ExtractBundler {
+public final class ExtractBundler {
     private static final Logger LOGGER = LogUtils.getLogger();
 
     public static void run(JarFile bundlerJar, Path outputFile) throws IOException {
@@ -109,4 +109,6 @@ public class ExtractBundler {
             return new FileEntry(fields[0], id, path);
         }
     }
+
+    private ExtractBundler() {}
 }

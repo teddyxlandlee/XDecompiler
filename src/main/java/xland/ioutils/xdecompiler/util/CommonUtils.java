@@ -20,7 +20,7 @@ import java.security.SecureRandom;
 import java.util.*;
 import java.util.random.RandomGenerator;
 
-public class CommonUtils {
+public final class CommonUtils {
     public static <E> List<E> mergePreserveOrder(List<? extends E> first, List<? extends E> second) {
         if (first instanceof RandomAccess && second instanceof RandomAccess) {
             return mergePreserveOrderRA(first, second);
@@ -133,4 +133,6 @@ public class CommonUtils {
     public static String newNanoID() {
         return newNanoID(NANO_ID_DEFAULT_LEN);
     }
+
+    private CommonUtils() {}
 }

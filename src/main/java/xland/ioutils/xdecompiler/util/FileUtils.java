@@ -29,7 +29,7 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
-public class FileUtils {
+public final class FileUtils {
     public static void deleteRecursively(Path root, boolean retainRoot) throws IOException {
         Files.walkFileTree(root, new SimpleFileVisitor<>() {
             @Override
@@ -81,4 +81,6 @@ public class FileUtils {
             }
         }
     }
+
+    private FileUtils() {}
 }

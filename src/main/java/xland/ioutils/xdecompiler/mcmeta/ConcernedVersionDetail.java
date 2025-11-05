@@ -55,8 +55,8 @@ public record ConcernedVersionDetail(RemoteFile clientJar, RemoteFile serverJar,
         this(clientJar, serverJar, clientMappings, serverMappings, libraries, false);
     }
 
-    private static final ChronoZonedDateTime<?> TIME_PRE_OBF_REMOVAL = ChronoZonedDateTime.from(
-            ZonedDateTime.of(2025, 10, 30, 0, 0, 0, 0, ZoneId.of("UTC"))
+    private static final ChronoZonedDateTime<?> TIME_PRE_OBF_REMOVAL = ZonedDateTime.of(
+            2025, 10, 30, 0, 0, 0, 0, ZoneId.of("UTC")
     );
 
     public static ConcernedVersionDetail fromJson(Json json) {

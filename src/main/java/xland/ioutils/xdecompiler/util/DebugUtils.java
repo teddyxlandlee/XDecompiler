@@ -19,7 +19,7 @@ import org.slf4j.Logger;
 
 import java.util.function.Consumer;
 
-public class DebugUtils {
+public final class DebugUtils {
     private static final int DEBUG_FLAG = Integer.getInteger("xdecompiler.internal.debug", 0);
     private static final Logger LOGGER = LogUtils.getLogger();
 
@@ -31,4 +31,6 @@ public class DebugUtils {
     public static boolean flagged(int i) {
         return ((1 << i) & DEBUG_FLAG) != 0;
     }
+
+    private DebugUtils() {}
 }
