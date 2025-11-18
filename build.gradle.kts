@@ -5,6 +5,7 @@ plugins {
     id("java")
     id("com.diffplug.spotless") version "6.20.0"
     id("com.github.johnrengelman.shadow") version "8.1.1"
+    `maven-publish`
 }
 
 group = "xland.ioutils"
@@ -79,4 +80,15 @@ tasks.jar {
     	"Implementation-Timestamp" to "${ZonedDateTime.now(ZoneId.of("+08:00")).withNano(0)}",
     	"Automatic-Module-Name" to "xland.ioutils.xdecompiler",
     )
+}
+
+publishing {
+    publications {
+        register("mavenJava", MavenPublication::class) {
+            from(components.named("java").get())
+        }
+    }
+    repositories {
+//        mavenLocal()
+    }
 }
