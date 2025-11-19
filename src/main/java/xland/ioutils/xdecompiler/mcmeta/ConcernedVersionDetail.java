@@ -16,6 +16,7 @@
 package xland.ioutils.xdecompiler.mcmeta;
 
 import mjson.Json;
+import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.Nullable;
 import xland.ioutils.xdecompiler.mcmeta.libraries.Library;
@@ -42,13 +43,11 @@ public record ConcernedVersionDetail(RemoteFile clientJar, RemoteFile serverJar,
      * <p>See: <a href="https://www.minecraft.net/zh-hans/article/removing-obfuscation-in-java-edition">
      * Removing obfuscation in Java Edition</a>
      *
-     * <p>Still need to confirm the technical change of intermediary/yarn:
-     * <ul>
-     *     <li>Do they still exist?</li>
-     *     <li>If they still exist, then what changes are made to the <code>official</code> namespace?</li>
-     * </ul>
+     * <p>According to FabricMC's <a href='https://fabricmc.net/2025/10/31/obfuscation.html'>Removing Obfuscation
+     * from Fabric</a>, intermediary and yarn are to retire since the first snapshot after Mounts of Mayhem.
      */
     @Deprecated(since = "1.6", forRemoval = true)
+    @ApiStatus.ScheduledForRemoval(inVersion = "1.8")
     public ConcernedVersionDetail(RemoteFile clientJar, RemoteFile serverJar,
                                   @Nullable RemoteFile clientMappings, @Nullable RemoteFile serverMappings,
                                   List<Library> libraries) {
@@ -84,7 +83,9 @@ public record ConcernedVersionDetail(RemoteFile clientJar, RemoteFile serverJar,
         // What is sure is that the "experimental releases" are not included in launcher meta, whose ids are suffixes with `_unobfuscated`.
         // reference: https://www.minecraft.net/zh-hans/article/removing-obfuscation-in-java-edition
         boolean isUnobfuscated = false;
-        if (clientMappings == null && serverMappings == null) {
+        if (json.at("type").isString() && "unobfuscated".equals(json.at("type").asString())) {
+            isUnobfuscated = true;
+        } else if (clientMappings == null && serverMappings == null) {
             ChronoZonedDateTime<?> releaseTime = VersionManifest.VersionMeta.zonedDateTime(json, "releaseTime");
             isUnobfuscated = TIME_PRE_OBF_REMOVAL.isBefore(releaseTime);
         }
