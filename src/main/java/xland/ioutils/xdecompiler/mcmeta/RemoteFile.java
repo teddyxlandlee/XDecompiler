@@ -118,13 +118,6 @@ public record RemoteFile(URL url, String hash, @Nullable Long size, Supplier<Mes
                     lock = false;
                     return b;
                 }
-
-                @Override
-                public int read(byte @NotNull [] b) throws IOException {
-                    boolean wasLock = lock;
-                    lock = true;
-                    return add(super.read(b), wasLock);
-                }
             };
         }
     }

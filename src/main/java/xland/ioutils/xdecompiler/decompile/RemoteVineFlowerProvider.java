@@ -121,7 +121,7 @@ public class RemoteVineFlowerProvider implements DecompilerProvider {
         final byte[] clazz = EntrypointFactory.getBytecode();
 
         // Download vineflower
-        var vineflower = downloadVF();
+        var vineflower = getOrDownloadVF();
         var maybeParent = Thread.currentThread().getContextClassLoader().getParent();
         return new URLClassLoader(new URL[]{vineflower.toUri().toURL()}, maybeParent) {
             @Override
@@ -132,6 +132,20 @@ public class RemoteVineFlowerProvider implements DecompilerProvider {
                 return super.findClass(name);
             }
         };
+    }
+
+    private static volatile Path vineflowerJarClass;
+    private static final Object LOCK_getOrDownloadVF = new Object();
+
+    private static Path getOrDownloadVF() throws IOException, HashMismatchException {
+        if (vineflowerJarClass == null) {
+            synchronized (LOCK_getOrDownloadVF) {
+                if (vineflowerJarClass == null) {
+                    vineflowerJarClass = downloadVF();
+                }
+            }
+        }
+        return vineflowerJarClass;
     }
 
     private static Path downloadVF() throws IOException, HashMismatchException {

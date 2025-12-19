@@ -57,6 +57,9 @@ public record ConcernedVersionDetail(RemoteFile clientJar, RemoteFile serverJar,
     private static final ChronoZonedDateTime<?> TIME_PRE_OBF_REMOVAL = ZonedDateTime.of(
             2025, 10, 30, 0, 0, 0, 0, ZoneId.of("UTC")
     );
+    private static final ChronoZonedDateTime<?> TIME_POST_OBF_REMOVAL = ZonedDateTime.of(
+            2025, 12, 12, 0, 0, 0, 0, ZoneId.of("UTC")
+    );
 
     public static ConcernedVersionDetail fromJson(Json json) {
         Json sub = json.at("downloads");
@@ -79,14 +82,15 @@ public record ConcernedVersionDetail(RemoteFile clientJar, RemoteFile serverJar,
                 .filter(Objects::nonNull)
                 .toList();
 
-        // TODO: figure out the format of metadata of 'un-obfuscated “experimental release” versions'.
         // What is sure is that the "experimental releases" are not included in launcher meta, whose ids are suffixes with `_unobfuscated`.
         // reference: https://www.minecraft.net/zh-hans/article/removing-obfuscation-in-java-edition
         boolean isUnobfuscated = false;
-        if (json.at("type").isString() && "unobfuscated".equals(json.at("type").asString())) {
+        ChronoZonedDateTime<?> releaseTime = VersionManifest.VersionMeta.zonedDateTime(json, "releaseTime");
+        if (TIME_POST_OBF_REMOVAL.isBefore(releaseTime)) {
+            isUnobfuscated = true;
+        } else if (json.at("type").isString() && "unobfuscated".equals(json.at("type").asString())) {
             isUnobfuscated = true;
         } else if (clientMappings == null && serverMappings == null) {
-            ChronoZonedDateTime<?> releaseTime = VersionManifest.VersionMeta.zonedDateTime(json, "releaseTime");
             isUnobfuscated = TIME_PRE_OBF_REMOVAL.isBefore(releaseTime);
         }
 
