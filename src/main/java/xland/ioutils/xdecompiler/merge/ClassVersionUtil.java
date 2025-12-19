@@ -31,6 +31,7 @@ final class ClassVersionUtil {
 
     public static String classVersion(byte[] classBuffer) {
         return switch (getClassVersion(classBuffer)) {
+            case V26  -> "V26";
             case V25  -> "V25";
             case V24  -> "V24";
             case V23  -> "V23";
