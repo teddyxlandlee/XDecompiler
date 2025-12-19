@@ -192,7 +192,7 @@ public record Main(String version, DecompilerProvider decompilerProvider,
         OptionParser parser = new OptionParser();
         var mappings = parser.accepts("mappings", "Mappings to load, with arguments")
                 .withRequiredArg()
-                .defaultsTo("intermediary", "yarn=latest", "mojmaps");
+                .defaultsTo("mojmaps");
         var decompiler = parser.accepts("decompiler", "Decompiler used")
                 .withRequiredArg()
                 .defaultsTo("vineflower");
