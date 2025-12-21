@@ -62,8 +62,8 @@ public class RemoteVineFlowerProvider implements DecompilerProvider {
 
     @Override
     public void decompile(Path jarIn, Collection<Path> classpath, Path dirOut) {
-        xland.ioutils.xdecompiler.util.DebugUtils.log(3, l -> {
-            l.info("Listing decompile arguments due to debug flag 3");
+        xland.ioutils.xdecompiler.util.DebugUtils.log(DebugUtils.VF_LIST_ARGS, l -> {
+            l.info("Listing decompile arguments due to debug flag {}", DebugUtils.VF_LIST_ARGS);
             l.info("jarIn:\t{}", jarIn);
             l.info("dirOut:\t{}", dirOut);
             l.info("classpath:");
@@ -265,7 +265,7 @@ public class RemoteVineFlowerProvider implements DecompilerProvider {
         private static final byte[] CLASS_FILE_ORIGINAL = createClass();
 
         static {
-            xland.ioutils.xdecompiler.util.DebugUtils.log(6, l -> {
+            xland.ioutils.xdecompiler.util.DebugUtils.log(DebugUtils.VF_DUMP_STUB_CLASS, l -> {
                 try {
                     final byte[] byteCode = getBytecode();
                     var dumpedPath = TempDirs.get().createFile(".class");

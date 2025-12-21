@@ -96,8 +96,8 @@ public record Main(String version, DecompilerProvider decompilerProvider,
 
         LOGGER.info("\tDumping resources...");
         LOGGER.debug("Resources zip at {}", resources);
-        xland.ioutils.xdecompiler.util.DebugUtils.log(2, l -> {
-            l.info("Deleting old files due to debug flag 2");
+        xland.ioutils.xdecompiler.util.DebugUtils.log(DebugUtils.DELETE_OLD_RESOURCES, l -> {
+            l.info("Deleting old files due to debug flag {}", DebugUtils.DELETE_OLD_RESOURCES);
             try {
                 xland.ioutils.xdecompiler.util.FileUtils.deleteRecursively(outputRes(), true);
             } catch (IOException e) {
@@ -122,10 +122,10 @@ public record Main(String version, DecompilerProvider decompilerProvider,
         Collection<MappingProvider> mappingsToRemap = preparedMappings.getValue();
         LOGGER.info("\tTarget namespaces to remap: {}", mappingsToRemap.stream().map(MappingProvider::destNamespace).toList());
 
-        xland.ioutils.xdecompiler.util.DebugUtils.log(5, l -> {
+        xland.ioutils.xdecompiler.util.DebugUtils.log(DebugUtils.DUMP_MAPPING_TREE, l -> {
             try {
                 Path path = TempDirs.get().createFile();
-                l.info("Dumping mapping tree to {} due to debug flag 5", path);
+                l.info("Dumping mapping tree to {} due to debug flag {}", path, DebugUtils.DUMP_MAPPING_TREE);
                 try (var v = new net.fabricmc.mappingio.format.tiny.Tiny1FileWriter(Files.newBufferedWriter(path))) {
                     mapping.accept(v);
                 }

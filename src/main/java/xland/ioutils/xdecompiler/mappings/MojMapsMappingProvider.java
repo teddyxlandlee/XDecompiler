@@ -20,13 +20,13 @@ import net.fabricmc.mappingio.adapter.MappingSourceNsSwitch;
 import net.fabricmc.mappingio.format.proguard.ProGuardFileReader;
 import net.fabricmc.mappingio.tree.MappingTreeView;
 import net.fabricmc.mappingio.tree.MemoryMappingTree;
-import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import xland.ioutils.xdecompiler.mcmeta.ConcernedVersionDetail;
 import xland.ioutils.xdecompiler.mcmeta.RemoteFile;
 import xland.ioutils.xdecompiler.mcmeta.VersionManifest;
+import xland.ioutils.xdecompiler.util.DebugUtils;
 import xland.ioutils.xdecompiler.util.LogUtils;
 
 import java.io.BufferedReader;
@@ -74,9 +74,9 @@ public class MojMapsMappingProvider implements MappingProvider {
 
     private static void read(RemoteFile mapping, MappingVisitor visitor) throws IOException {
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(mapping.openFilteredInputStream()))) {
-            if (xland.ioutils.xdecompiler.util.DebugUtils.flagged(4)) {
+            if (xland.ioutils.xdecompiler.util.DebugUtils.flagged(DebugUtils.DUMP_MAPPINGS)) {
                 var f = xland.ioutils.xdecompiler.util.TempDirs.get().createFile();
-                LOGGER.info("Writing mapping to {} due to debug flag 4", f);
+                LOGGER.info("Writing mapping to {} due to debug flag {}", f, DebugUtils.DUMP_MAPPINGS);
                 try (var visitor0 = new net.fabricmc.mappingio.format.tiny.Tiny2FileWriter(java.nio.file.Files.newBufferedWriter(f), true)) {
                     MappingVisitor visitor1 = visitor0;
                     visitor1 = new MappingSourceNsSwitch(visitor1, SOURCE_NAMESPACE);

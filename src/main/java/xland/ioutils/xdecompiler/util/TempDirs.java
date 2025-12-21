@@ -64,8 +64,8 @@ public final class TempDirs implements Closeable {
                 dirs = create();
             Runtime.getRuntime().addShutdownHook(new Thread(() -> {
                 var flagQuit = new java.util.concurrent.atomic.AtomicBoolean();
-                DebugUtils.log(1, l -> {
-                    l.info("TempDirs at {} will not be cleaned up due to debug flag 1", dirs.baseDir);
+                DebugUtils.log(DebugUtils.TEMP_DIRS, l -> {
+                    l.info("TempDirs at {} will not be cleaned up due to debug flag {}", dirs.baseDir, DebugUtils.TEMP_DIRS);
                     flagQuit.set(true);
                 });
                 if (flagQuit.get()) return;
