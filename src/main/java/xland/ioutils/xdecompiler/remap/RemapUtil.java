@@ -22,7 +22,7 @@ import net.fabricmc.tinyremapper.TinyRemapper;
 import java.util.function.Consumer;
 import java.util.regex.Pattern;
 
-public class RemapUtil {
+public final class RemapUtil {
     private static final Pattern MC_LV_PATTERN = Pattern.compile("\\$\\$\\d+");
 
     public static IMappingProvider create(MappingTreeView mappings, String from, String to, boolean remapLocalVariables) {
@@ -100,4 +100,6 @@ public class RemapUtil {
         builderConsumer.accept(builder);
         return builder.build();
     }
+
+    private RemapUtil() {}
 }

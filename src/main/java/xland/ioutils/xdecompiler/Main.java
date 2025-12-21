@@ -40,8 +40,10 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.jar.JarFile;
 import java.util.stream.Collectors;
@@ -85,15 +87,17 @@ public record Main(String version, DecompilerProvider decompilerProvider,
         try (ZipOutputStream mergedJarOut = new ZipOutputStream(Files.newOutputStream(mergedJar));
              ZipOutputStream resourcesOut = new ZipOutputStream(Files.newOutputStream(resources))) {
             var jarMerger = new JarMerger(clientJar, serverJar, mergedJarOut, resourcesOut);
-            jarMerger.enableSnowmanRemoval();
-            jarMerger.enableSyntheticParamsOffset();
+            if (!detail.isUnobfuscated()) {     // optimizes unobfuscated versions
+                jarMerger.enableSnowmanRemoval();
+                jarMerger.enableSyntheticParamsOffset();
+            }
             jarMerger.merge();
         }
 
         LOGGER.info("\tDumping resources...");
         LOGGER.debug("Resources zip at {}", resources);
-        xland.ioutils.xdecompiler.util.DebugUtils.log(2, l -> {
-            l.info("Deleting old files due to debug flag 2");
+        xland.ioutils.xdecompiler.util.DebugUtils.log(DebugUtils.DELETE_OLD_RESOURCES, l -> {
+            l.info("Deleting old files due to debug flag {}", DebugUtils.DELETE_OLD_RESOURCES);
             try {
                 xland.ioutils.xdecompiler.util.FileUtils.deleteRecursively(outputRes(), true);
             } catch (IOException e) {
@@ -118,10 +122,10 @@ public record Main(String version, DecompilerProvider decompilerProvider,
         Collection<MappingProvider> mappingsToRemap = preparedMappings.getValue();
         LOGGER.info("\tTarget namespaces to remap: {}", mappingsToRemap.stream().map(MappingProvider::destNamespace).toList());
 
-        xland.ioutils.xdecompiler.util.DebugUtils.log(5, l -> {
+        xland.ioutils.xdecompiler.util.DebugUtils.log(DebugUtils.DUMP_MAPPING_TREE, l -> {
             try {
                 Path path = TempDirs.get().createFile();
-                l.info("Dumping mapping tree to {} due to debug flag 5", path);
+                l.info("Dumping mapping tree to {} due to debug flag {}", path, DebugUtils.DUMP_MAPPING_TREE);
                 try (var v = new net.fabricmc.mappingio.format.tiny.Tiny1FileWriter(Files.newBufferedWriter(path))) {
                     mapping.accept(v);
                 }
@@ -132,44 +136,83 @@ public record Main(String version, DecompilerProvider decompilerProvider,
 
         // 6. remap & decompile
         LOGGER.info("6. Starting remap & decompile...");
+        // If there is more than one remap-free provider, then we can reuse its decompile result
+        AtomicReference<String> firstRemapFreeProviderId = new AtomicReference<>();
+        var copyCandidates = new CopyOnWriteArrayList<String>();
+
         try (ExecutorService singleThreadExecutor = Executors.newSingleThreadExecutor()) {
+            // decompiling is always single-threaded
+
+            record DecompileInput(Path decompileSource, String providerId, boolean isRemapFree) {}
+
             // CPU-consuming
             ConcurrentUtils.runPlatform("remap", PublicProperties.remapThreads(), executors -> mappingsToRemap.stream()
-                    .map(provider -> CompletableFuture.supplyAsync(() -> {
-                        // remap
+                    .map(provider -> {
+                        final String destNamespace = provider.destNamespace();
                         final String providerId = provider.id();
-                        LOGGER.info("...Remapping {}", providerId);
-                        try {
-                            final long t0 = System.nanoTime();
-                            final Path path = TempDirs.get().createFile();
-                            Files.deleteIfExists(path); // to avoid ProviderNotFoundException
-                            remap(mergedJar, libraries, path, mapping, provider.destNamespace());
-                            LOGGER.info("...Remapped {} in {}", providerId, TimeUtils.timeFormat(System.nanoTime() - t0));
-                            return Map.entry(path, providerId);
-                        } catch (IOException e) {
-                            CommonUtils.sneakyThrow(e);
-                            throw new IncompatibleClassChangeError(); // unreachable
+
+                        if (mapping.getNamespaceId(destNamespace) == MappingTreeView.NULL_NAMESPACE_ID) {
+                            // no remapping needed
+                            LOGGER.info("No remapping needed for {}", providerId);
+                            return CompletableFuture.completedFuture(new DecompileInput(mergedJar, providerId, true));
                         }
-                    }, executors))
-                    .map(cf -> cf.thenAcceptAsync(pair -> {
+
+                        return CompletableFuture.supplyAsync(() -> {
+                            // remap
+                            LOGGER.info("...Remapping {}", providerId);
+                            try {
+                                final long t0 = System.nanoTime();
+                                final Path remapped = TempDirs.get().createFile();
+                                Files.deleteIfExists(remapped); // to avoid ProviderNotFoundException
+                                remap(mergedJar, libraries, remapped, mapping, destNamespace);
+                                LOGGER.info("...Remapped {} in {}", providerId, TimeUtils.timeFormat(System.nanoTime() - t0));
+                                return new DecompileInput(remapped, providerId, false);
+                            } catch (IOException e) {
+                                CommonUtils.sneakyThrow(e);
+                                throw new IncompatibleClassChangeError(); // unreachable
+                            }
+                        }, executors);
+                    })
+                    .map(cf -> cf.thenAcceptAsync(decompileInput -> {
                         // decompile
-                        LOGGER.info("...Decompiling {}", pair.getValue());
-                        LOGGER.debug("\tClasses of {} is from {}", pair.getValue(), pair.getKey());
-                        final Path pathOut = output().resolve(pair.getValue());
+                        if (decompileInput.isRemapFree()) {
+                            if (!firstRemapFreeProviderId.compareAndSet(null, decompileInput.providerId())) {
+                                // Reuse its result. Queue into copy candidates
+                                copyCandidates.add(decompileInput.providerId());
+                                return;
+                            }
+                        }
+
+                        LOGGER.info("...Decompiling {}", decompileInput.providerId());
+                        LOGGER.debug("\tClasses of {} is from {}", decompileInput.providerId(), decompileInput.decompileSource());
+
+                        final Path pathOut = output().resolve(decompileInput.providerId());
                         try {
                             Files.createDirectories(pathOut);
                         } catch (IOException e) {
                             CommonUtils.sneakyThrow(e);
                         }
-                        decompilerProvider().decompile(pair.getKey(), libraries, pathOut);
+
+                        decompilerProvider().decompile(decompileInput.decompileSource(), libraries, pathOut);
                     }, singleThreadExecutor))
             );
+
+            if (firstRemapFreeProviderId.get() != null) {
+                Path src = output().resolve(firstRemapFreeProviderId.get());
+                for (String candidate : copyCandidates) {
+                    Path dst = output().resolve(candidate);
+                    LOGGER.info("...Copying decompile result from {} to {}", firstRemapFreeProviderId.get(), candidate);
+                    // Copy the whole directory (src -> dst), including all contents of all depths.
+                    // Creates dst if not exist
+                    FileUtils.copyDirRecursively(src, dst);
+                }
+            }
         }
     }
 
     public static void remap(Path input, Collection<Path> libraries, Path output,
                               MappingTreeView mapping, String targetNs) throws IOException {
-        final TinyRemapper r = RemapUtil.getTinyRemapper(mapping, MappingProvider.SOURCE_NAMESPACE, targetNs, builder -> {});
+        final TinyRemapper r = RemapUtil.getTinyRemapper(mapping, MappingProvider.SOURCE_NAMESPACE, targetNs, _ -> {});
 
         try (OutputConsumerPath outputConsumerPath = new OutputConsumerPath.Builder(output)
                 .assumeArchive(true).build()) {
@@ -192,7 +235,7 @@ public record Main(String version, DecompilerProvider decompilerProvider,
         OptionParser parser = new OptionParser();
         var mappings = parser.accepts("mappings", "Mappings to load, with arguments")
                 .withRequiredArg()
-                .defaultsTo("intermediary", "yarn=latest", "mojmaps");
+                .defaultsTo("mojmaps");
         var decompiler = parser.accepts("decompiler", "Decompiler used")
                 .withRequiredArg()
                 .defaultsTo("vineflower");

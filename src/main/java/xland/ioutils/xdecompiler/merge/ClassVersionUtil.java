@@ -15,48 +15,21 @@
  */
 package xland.ioutils.xdecompiler.merge;
 
-import static org.objectweb.asm.Opcodes.*;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.VarHandle;
+import java.lang.reflect.ClassFileFormatVersion;
+import java.nio.ByteOrder;
 
 final class ClassVersionUtil {
-    private static int getClassVersion(byte[] classBuffer) {
-        int offset = 6;
-        return ((classBuffer[offset] & 0xFF) << 8) | (classBuffer[offset + 1] & 0xFF);
+    public static Object classVersionBytes(byte[] classBuffer) {
+        final int majorVersion = (short) ARRAY_ACCESS.get(classBuffer, 6);
+
+        try {
+            return ClassFileFormatVersion.fromMajor(majorVersion);
+        } catch (IllegalArgumentException _) {  // invalid
+            return "0x".concat(Integer.toHexString(majorVersion));
+        }
     }
 
-    public static String classVersion1(byte[] classBuffer) {
-        final String s = classVersion(classBuffer);
-        if (s.startsWith("V")) return null;
-        return s;
-    }
-
-    public static String classVersion(byte[] classBuffer) {
-        return switch (getClassVersion(classBuffer)) {
-            case V25  -> "V25";
-            case V24  -> "V24";
-            case V23  -> "V23";
-            case V22  -> "V22";
-            case V21  -> "V21";
-            case V20  -> "V20";
-            case V19  -> "V19";
-            case V18  -> "V18";
-            case V17  -> "V17";
-            case V16  -> "V16";
-            case V15  -> "V15";
-            case V14  -> "V14";
-            case V13  -> "V13";
-            case V12  -> "V12";
-            case V11  -> "V11";
-            case V10  -> "V10";
-            case V9   -> "V9";
-            case V1_8 -> "V1_8";
-            case V1_7 -> "V1_7";
-            case V1_6 -> "V1_6";
-            case V1_5 -> "V1_5";
-            case V1_4 -> "V1_4";
-            case V1_3 -> "V1_3";
-            case V1_2 -> "V1_2";
-            case V1_1 -> "V1_1";
-            default -> Integer.toHexString(getClassVersion(classBuffer));
-        };
-    }
+    private static final VarHandle ARRAY_ACCESS = MethodHandles.byteArrayViewVarHandle(short[].class, ByteOrder.BIG_ENDIAN);
 }

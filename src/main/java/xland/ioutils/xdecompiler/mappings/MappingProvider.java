@@ -29,6 +29,7 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 public interface MappingProvider extends Identified {
@@ -64,6 +65,7 @@ public interface MappingProvider extends Identified {
         tree.setSrcNamespace(SOURCE_NAMESPACE);
         tree.setDstNamespaces(map.values().stream().map(MappingProvider::destNamespace).collect(Collectors.toList()));
         CopyOnWriteArrayList<MappingTreeView> treeViews = new CopyOnWriteArrayList<>();
+        AtomicBoolean isNonEmptyTree = new AtomicBoolean();
         CopyOnWriteArrayList<MappingProvider> mappingsToRemap = new CopyOnWriteArrayList<>();
 
         ConcurrentUtils.runVirtual("mapping-provider", executors -> map.values().stream()
@@ -71,6 +73,7 @@ public interface MappingProvider extends Identified {
                     try {
                         final MappingTreeView treeView = p.prepare(classMemberInfoPool, versionMeta, args.getOrDefault(p.id(), ""));
                         if (p.isRemapTarget()) mappingsToRemap.add(p);
+                        if (!(treeView instanceof MappingUtil.EmptyMappingTreeView)) isNonEmptyTree.set(true);
                         return treeView;
                     } catch (FileNotFoundException e) {
                         LogUtils.getLogger().warn("Failed to prepare {} because the corresponding mapping is absent: {}",
@@ -83,6 +86,10 @@ public interface MappingProvider extends Identified {
                 }, executors))
                 .map(f -> f.thenAccept(treeViews::add))
         );
+
+        if (!isNonEmptyTree.get()) {    // all mappings are empty
+            return Map.entry(MappingUtil.emptyMappingTreeView(), mappingsToRemap);
+        }
 
         try {
             for (MappingTreeView treeView : treeViews) {

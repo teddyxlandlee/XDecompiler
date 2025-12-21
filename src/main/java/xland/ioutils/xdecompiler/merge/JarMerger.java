@@ -21,6 +21,7 @@ import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.Opcodes;
 import org.slf4j.Logger;
+import xland.ioutils.xdecompiler.util.CommonUtils;
 import xland.ioutils.xdecompiler.util.ConcurrentUtils;
 import xland.ioutils.xdecompiler.util.LogUtils;
 
@@ -30,8 +31,11 @@ import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 import java.util.zip.ZipOutputStream;
@@ -60,8 +64,12 @@ public class JarMerger implements AutoCloseable {
             final String fn = e.getName();
             if (!fn.endsWith(".class")) {
                 if ("META-INF/MANIFEST.MF".equals(fn)) {
-                    entries.put("META-INF/MANIFEST.MF", new Entry(fn,
-                            "Manifest-Version: 1.0\nMain-Class: net.minecraft.client.Main\n".getBytes(StandardCharsets.UTF_8)));
+                    entries.put("META-INF/MANIFEST.MF", new Entry(
+                            fn, """
+                            Manifest-Version: 1.0
+                            Main-Class: net.minecraft.client.Main
+                            """.getBytes(StandardCharsets.UTF_8)
+                    ));
                 } else {
                     if (fn.startsWith("META-INF/")) {
                         if (fn.endsWith(".SF") || fn.endsWith(".RSA")) {
@@ -121,13 +129,31 @@ public class JarMerger implements AutoCloseable {
             throw ex;
         }
         
-        Set<String> entriesAll = new LinkedHashSet<>();
+        Set<String> entriesAll = LinkedHashSet.newLinkedHashSet(entriesClient.size() + entriesServer.size());
         entriesAll.addAll(entriesClient.keySet());
         entriesAll.addAll(entriesServer.keySet());
         
         ClassMerger cm = new ClassMerger();
 
-        entriesAll.parallelStream().map((entry) -> {
+        BlockingQueue<Entry> entryQueue = new ArrayBlockingQueue<>(entriesAll.size());
+        AtomicBoolean isComplete = new AtomicBoolean();
+
+        Thread writingThread = Thread.ofVirtual().name("jar-merger-writer").start(() -> {
+            while (!isComplete.get() || !entryQueue.isEmpty()) {
+                try {
+                    Entry e = entryQueue.poll();
+                    if (e == null) continue;
+
+                    output.putNextEntry(new ZipEntry(e.path));
+                    output.write(e.data);
+                    output.closeEntry();
+                } catch (IOException ex) {
+                    throw new UncheckedIOException(ex);
+                }
+            }
+        });
+
+        entriesAll.parallelStream().forEach((String entry) -> {
             boolean isClass = entry.endsWith(".class");
 
             boolean isMinecraft = entriesClient.containsKey(entry) || entry.startsWith("net/minecraft/") || !entry.contains("/");
@@ -152,17 +178,15 @@ public class JarMerger implements AutoCloseable {
             }
 
             if (isClass && !isMinecraft && "SERVER".equals(side)) {
-                // Server bundles libraries, client doesn't - skip them
-                return null;
+                // Server may bundle libraries (before net.minecraft.bundler was introduced), client doesn't - skip them
+                return;
             }
 
             if (result != null) {
                 if (isMinecraft && isClass) {
                     if (LOGGER.isDebugEnabled()) {
-                        String cvr = ClassVersionUtil.classVersion1(result.data);
-                        if (cvr != null) {
-                            LOGGER.debug("Merging {}, class version {}", result.path, cvr);
-                        }
+                        Object cvr = ClassVersionUtil.classVersionBytes(result.data);
+                        LOGGER.debug("Merging {}, class version {}", result.path, cvr);
                     }
                     byte[] data = result.data;
                     ClassReader reader = new ClassReader(data);
@@ -176,19 +200,16 @@ public class JarMerger implements AutoCloseable {
                     }
                 }
 
-                return result;
-            } else {
-                return null;
-            }
-        }).filter(Objects::nonNull).forEachOrdered(e -> {
-            try {
-                output.putNextEntry(new ZipEntry(e.path));
-                output.write(e.data);
-                output.closeEntry();
-            } catch (IOException ex) {
-                throw new UncheckedIOException(ex);
+                entryQueue.add(result);
             }
         });
+
+        isComplete.set(true);
+        try {
+            writingThread.join();
+        } catch (InterruptedException e) {
+            CommonUtils.sneakyThrow(e);
+        }
     }
 
     private ClassVisitor visitThrough(ClassWriter writer, String side) {
@@ -214,7 +235,7 @@ public class JarMerger implements AutoCloseable {
     public void close() throws Exception {
         inputClient.close();
         inputServer.close();
-        output.finish();
+        output.finish();    // no need to close
         if (outputResources != null)
             outputResources.finish();
     }

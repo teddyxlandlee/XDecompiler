@@ -26,6 +26,7 @@ import org.slf4j.Logger;
 import xland.ioutils.xdecompiler.mcmeta.ConcernedVersionDetail;
 import xland.ioutils.xdecompiler.mcmeta.RemoteFile;
 import xland.ioutils.xdecompiler.mcmeta.VersionManifest;
+import xland.ioutils.xdecompiler.util.DebugUtils;
 import xland.ioutils.xdecompiler.util.LogUtils;
 
 import java.io.BufferedReader;
@@ -51,14 +52,20 @@ public class MojMapsMappingProvider implements MappingProvider {
     public MappingTreeView prepare(ClassMemberInfoPool classMembers, VersionManifest.VersionMeta versionMeta, String arg) throws IOException {
         final ConcernedVersionDetail detail = versionMeta.getOrFetchDetail();
 
+        if (detail.isUnobfuscated()) {
+            // as-is; we don't need to remap anymore
+            return MappingUtil.emptyMappingTreeView();
+        }
+
+        final RemoteFile clientMappings = detail.clientMappings(), serverMappings = detail.serverMappings();
+        if (clientMappings == null || serverMappings == null) {
+            throw new FileNotFoundException("official mappings are absent for " + versionMeta.id());
+        }
+
         MemoryMappingTree tree = new MemoryMappingTree();
         MappingVisitor visitor = tree;
         visitor = MappingUtil.classMemberFilter(visitor, classMembers);
         visitor = new MappingSourceNsSwitch(visitor, SOURCE_NAMESPACE);
-
-        final RemoteFile clientMappings = detail.clientMappings(), serverMappings = detail.serverMappings();
-        if (clientMappings == null || serverMappings == null)
-            throw new FileNotFoundException("official mappings are absent for " + versionMeta.id());
 
         read(clientMappings, visitor);
         read(serverMappings, visitor);
@@ -67,9 +74,9 @@ public class MojMapsMappingProvider implements MappingProvider {
 
     private static void read(RemoteFile mapping, MappingVisitor visitor) throws IOException {
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(mapping.openFilteredInputStream()))) {
-            if (xland.ioutils.xdecompiler.util.DebugUtils.flagged(4)) {
+            if (xland.ioutils.xdecompiler.util.DebugUtils.flagged(DebugUtils.DUMP_MAPPINGS)) {
                 var f = xland.ioutils.xdecompiler.util.TempDirs.get().createFile();
-                LOGGER.info("Writing mapping to {} due to debug flag 4", f);
+                LOGGER.info("Writing mapping to {} due to debug flag {}", f, DebugUtils.DUMP_MAPPINGS);
                 try (var visitor0 = new net.fabricmc.mappingio.format.tiny.Tiny2FileWriter(java.nio.file.Files.newBufferedWriter(f), true)) {
                     MappingVisitor visitor1 = visitor0;
                     visitor1 = new MappingSourceNsSwitch(visitor1, SOURCE_NAMESPACE);

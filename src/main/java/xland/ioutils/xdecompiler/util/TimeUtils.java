@@ -20,7 +20,7 @@ import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 
-public class TimeUtils {
+public final class TimeUtils {
     private static List<String> timeFormat0(Duration duration) {
         List<String> l = new ArrayList<>();
         int i;
@@ -108,4 +108,6 @@ public class TimeUtils {
                         .sum()
         );
     }
+
+    private TimeUtils() {}
 }

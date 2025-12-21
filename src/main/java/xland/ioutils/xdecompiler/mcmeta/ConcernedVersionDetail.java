@@ -16,6 +16,7 @@
 package xland.ioutils.xdecompiler.mcmeta;
 
 import mjson.Json;
+import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.Nullable;
 import xland.ioutils.xdecompiler.mcmeta.libraries.Library;
@@ -24,6 +25,9 @@ import xland.ioutils.xdecompiler.util.ConcurrentUtils;
 
 import java.net.MalformedURLException;
 import java.nio.file.Path;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.chrono.ChronoZonedDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
@@ -32,7 +36,31 @@ import java.util.concurrent.CopyOnWriteArrayList;
 
 public record ConcernedVersionDetail(RemoteFile clientJar, RemoteFile serverJar,
                                      @Nullable RemoteFile clientMappings, @Nullable RemoteFile serverMappings,
-                                     List<Library> libraries) {
+                                     List<Library> libraries,
+                                     boolean isUnobfuscated) {
+    /**
+     * @deprecated <p>Unobfuscated-ness becomes a crucial property as of the un-obfuscation of Java Edition.
+     * <p>See: <a href="https://www.minecraft.net/zh-hans/article/removing-obfuscation-in-java-edition">
+     * Removing obfuscation in Java Edition</a>
+     *
+     * <p>According to FabricMC's <a href='https://fabricmc.net/2025/10/31/obfuscation.html'>Removing Obfuscation
+     * from Fabric</a>, intermediary and yarn are to retire since the first snapshot after Mounts of Mayhem.
+     */
+    @Deprecated(since = "1.6", forRemoval = true)
+    @ApiStatus.ScheduledForRemoval(inVersion = "1.8")
+    public ConcernedVersionDetail(RemoteFile clientJar, RemoteFile serverJar,
+                                  @Nullable RemoteFile clientMappings, @Nullable RemoteFile serverMappings,
+                                  List<Library> libraries) {
+        this(clientJar, serverJar, clientMappings, serverMappings, libraries, false);
+    }
+
+    private static final ChronoZonedDateTime<?> TIME_PRE_OBF_REMOVAL = ZonedDateTime.of(
+            2025, 10, 30, 0, 0, 0, 0, ZoneId.of("UTC")
+    );
+    private static final ChronoZonedDateTime<?> TIME_POST_OBF_REMOVAL = ZonedDateTime.of(
+            2025, 12, 12, 0, 0, 0, 0, ZoneId.of("UTC")
+    );
+
     public static ConcernedVersionDetail fromJson(Json json) {
         Json sub = json.at("downloads");
 
@@ -53,7 +81,22 @@ public record ConcernedVersionDetail(RemoteFile clientJar, RemoteFile serverJar,
                 })
                 .filter(Objects::nonNull)
                 .toList();
-        return new ConcernedVersionDetail(clientJar, serverJar, clientMappings, serverMappings, libraries);
+
+        boolean isUnobfuscated = false;
+        ChronoZonedDateTime<?> releaseTime = VersionManifest.VersionMeta.zonedDateTime(json, "releaseTime");
+        if (TIME_POST_OBF_REMOVAL.isBefore(releaseTime)) {
+            // Versions released after 1.21.11 (e.g. 26.1-snapshot-1) are unobfuscated.
+            isUnobfuscated = true;
+        } else if (json.at("type").isString() && "unobfuscated".equals(json.at("type").asString())) {
+            // What is sure is that the "experimental releases" are not included in launcher meta, whose ids are suffixes with `_unobfuscated`.
+            // reference: https://www.minecraft.net/zh-hans/article/removing-obfuscation-in-java-edition
+            isUnobfuscated = true;
+        } else if (clientMappings == null && serverMappings == null) {
+            // Beware that pre-1.14.4 versions are obfuscated but without mappings.
+            isUnobfuscated = TIME_PRE_OBF_REMOVAL.isBefore(releaseTime);
+        }
+
+        return new ConcernedVersionDetail(clientJar, serverJar, clientMappings, serverMappings, libraries, isUnobfuscated);
     }
 
     public Collection<Path> downloadLibrariesAsync(Path repo) {

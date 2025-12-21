@@ -17,6 +17,7 @@ package xland.ioutils.xdecompiler.mcmeta;
 
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import xland.ioutils.xdecompiler.util.DebugUtils;
 
 import java.io.FilterInputStream;
 import java.io.IOException;
@@ -66,7 +67,7 @@ public record RemoteFile(URL url, String hash, @Nullable Long size, Supplier<Mes
 
     public InputStream openFilteredInputStream() throws IOException {
         DigestInputStream is = new DigestInputStream(url.openStream(), mdFactory().get());
-        if (!xland.ioutils.xdecompiler.util.DebugUtils.flagged(0)) {
+        if (!xland.ioutils.xdecompiler.util.DebugUtils.flagged(DebugUtils.REMOTE_FILE_CHECK_SIZE)) {
             return new FilterInputStream(is) {
                 @Override
                 public void close() throws IOException {
@@ -117,13 +118,6 @@ public record RemoteFile(URL url, String hash, @Nullable Long size, Supplier<Mes
                     bytes += b;
                     lock = false;
                     return b;
-                }
-
-                @Override
-                public int read(byte @NotNull [] b) throws IOException {
-                    boolean wasLock = lock;
-                    lock = true;
-                    return add(super.read(b), wasLock);
                 }
             };
         }

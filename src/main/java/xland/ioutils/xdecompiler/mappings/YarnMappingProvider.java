@@ -27,10 +27,10 @@ import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import xland.ioutils.xdecompiler.mcmeta.VersionManifest;
 import xland.ioutils.xdecompiler.mcmeta.libraries.MavenArtifact;
+import xland.ioutils.xdecompiler.util.DebugUtils;
 import xland.ioutils.xdecompiler.util.LogUtils;
 import xland.ioutils.xdecompiler.util.PublicProperties;
 
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URL;
@@ -55,10 +55,16 @@ public class YarnMappingProvider implements MappingProvider {
     @Override
     @NotNull
     public MappingTreeView prepare(ClassMemberInfoPool classMemberInfoPool, VersionManifest.VersionMeta versionMeta, String arg) throws IOException {
+        // shortcut: unobfuscated versions has no intermediary or yarn mappings
+        if (versionMeta.getOrFetchDetail().isUnobfuscated()) {
+            return MappingUtil.emptyMappingTreeView();
+        }
+
         final String versionId = versionMeta.id();
         Json meta = Json.read(URI.create("https://meta.fabricmc.net/v2/versions/yarn/" + versionId).toURL());
         if (meta.asJsonList().isEmpty()) {
-            throw new FileNotFoundException("Missing yarn for version " + versionId);
+            LOGGER.warn("Missing yarn for version {}", versionId);
+            return MappingUtil.emptyMappingTreeView();
         }
 
         if (arg.isEmpty() || "latest".equalsIgnoreCase(arg))
@@ -88,9 +94,9 @@ public class YarnMappingProvider implements MappingProvider {
         visitor = new MappingSourceNsSwitch(visitor, "intermediary");
         visitor = new MappingNsRenamer(visitor, Map.of("named", "yarn"));
 
-        if (xland.ioutils.xdecompiler.util.DebugUtils.flagged(3)) {
+        if (xland.ioutils.xdecompiler.util.DebugUtils.flagged(DebugUtils.DUMP_MAPPINGS)) {
             var f = xland.ioutils.xdecompiler.util.TempDirs.get().createFile();
-            LOGGER.info("Dumping mapping to {} due to debug flag 3...", f);
+            LOGGER.info("Dumping mapping to {} due to debug flag {}...", f, DebugUtils.DUMP_MAPPINGS);
             try (var w = new net.fabricmc.mappingio.format.tiny.Tiny2FileWriter(java.nio.file.Files.newBufferedWriter(f), true)) {
                 MappingVisitor visitor1 = w;
                 visitor1 = new MappingDstNsReorder(visitor1, "yarn");

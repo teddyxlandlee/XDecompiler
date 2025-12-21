@@ -38,7 +38,7 @@ import java.time.Duration;
 import java.util.*;
 import java.util.function.Supplier;
 
-public class GitRepoScript extends Script {
+public final class GitRepoScript extends Script {
     private static final Logger LOGGER = LogUtils.getLogger();
     private final Path scriptOutput;
     private final ConfigFile configFile;

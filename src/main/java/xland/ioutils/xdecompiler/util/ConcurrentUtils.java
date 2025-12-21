@@ -24,7 +24,7 @@ import java.util.concurrent.ThreadFactory;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
-public class ConcurrentUtils {
+public final class ConcurrentUtils {
     public static ExecutorService namedVirtualThreadExecutor(String prefix) {
         return Executors.newThreadPerTaskExecutor(ExecutorServiceFactory.VIRTUAL.threadFactory(prefix));
     }
@@ -88,4 +88,6 @@ public class ConcurrentUtils {
         if (throwableHolder.t0 == null) return;
         throw (T) throwableHolder.t0;
     }
+
+    private ConcurrentUtils() {}
 }

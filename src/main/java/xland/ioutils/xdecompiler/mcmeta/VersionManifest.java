@@ -177,7 +177,7 @@ public final class VersionManifest {
             return new VersionMeta(id, isSnapshot, isLegacy, file, time, releaseTime);
         }
 
-        private static ChronoZonedDateTime<?> zonedDateTime(Json json, String key) {
+        static @NotNull ChronoZonedDateTime<?> zonedDateTime(Json json, String key) {
             return ChronoZonedDateTime.from(DateTimeFormatter.ISO_DATE_TIME.parse(json.at(key).asString()));
         }
 

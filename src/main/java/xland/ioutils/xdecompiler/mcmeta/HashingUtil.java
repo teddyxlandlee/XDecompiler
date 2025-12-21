@@ -24,7 +24,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.function.Supplier;
 
-public class HashingUtil {
+public final class HashingUtil {
     private static final String HEXMAP = "0123456789abcdef";
 
     public static MessageDigest sha1() {
@@ -81,4 +81,6 @@ public class HashingUtil {
         }
         return isSame(hash, md.digest());
     }
+
+    private HashingUtil() {}
 }

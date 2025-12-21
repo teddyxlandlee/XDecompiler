@@ -15,8 +15,6 @@
  */
 package xland.ioutils.xdecompiler.decompile;
 
-import org.objectweb.asm.*;
-import org.objectweb.asm.commons.InstructionAdapter;
 import org.slf4j.Logger;
 import xland.ioutils.xdecompiler.mcmeta.HashMismatchException;
 import xland.ioutils.xdecompiler.mcmeta.HashingUtil;
@@ -24,9 +22,14 @@ import xland.ioutils.xdecompiler.mcmeta.RemoteFile;
 import xland.ioutils.xdecompiler.util.*;
 
 import java.io.*;
+import java.lang.classfile.ClassFile;
+import java.lang.classfile.CodeBuilder;
+import java.lang.constant.*;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
+import java.lang.reflect.AccessFlag;
+import java.lang.reflect.Modifier;
 import java.net.URI;
 import java.net.URL;
 import java.net.URLClassLoader;
@@ -37,9 +40,9 @@ import java.util.*;
 public class RemoteVineFlowerProvider implements DecompilerProvider {
     private static final Logger LOGGER = LogUtils.getLogger();
 
-    private static final String VF_ENTRYPOINT_CLASS = "xland.ioutils.xdecompiler.decompile.RemoteVineFlowerProvider$1-VineFlowerEntrypoint";
-    private static final String VF_ENTRYPOINT_NAME = "decompile";
-    private static final MethodType VF_ENTRYPOINT_TYPE = MethodType.methodType(
+    private static final String CLASSNAME_VFEntrypoint = "xland.ioutils.xdecompiler.decompile.RemoteVineFlowerProvider$1-VineFlowerEntrypoint";
+    private static final String M_VFEntrypoint = "decompile";
+    private static final MethodType MTResolved_VFEntrypoint = MethodType.methodType(
             void.class,
             /* arguments: */
             File.class,         // jarIn
@@ -59,8 +62,8 @@ public class RemoteVineFlowerProvider implements DecompilerProvider {
 
     @Override
     public void decompile(Path jarIn, Collection<Path> classpath, Path dirOut) {
-        xland.ioutils.xdecompiler.util.DebugUtils.log(3, l -> {
-            l.info("Listing decompile arguments due to debug flag 3");
+        xland.ioutils.xdecompiler.util.DebugUtils.log(DebugUtils.VF_LIST_ARGS, l -> {
+            l.info("Listing decompile arguments due to debug flag {}", DebugUtils.VF_LIST_ARGS);
             l.info("jarIn:\t{}", jarIn);
             l.info("dirOut:\t{}", dirOut);
             l.info("classpath:");
@@ -69,9 +72,8 @@ public class RemoteVineFlowerProvider implements DecompilerProvider {
         });
         try (var classLoader = classLoader()) {
             String vineFlowerLogDir = PublicProperties.vineFlowerLogDir();
-            PrintStream printStream = switch(vineFlowerLogDir) {
+            PrintStream printStream = switch (Objects./* should not happen */requireNonNullElse(vineFlowerLogDir, "")) {
                 case "", "/dev/null" -> new PrintStream(OutputStream.nullOutputStream());
-                case null -> new PrintStream(OutputStream.nullOutputStream());  // should not happen
                 case "/dev/stdout" -> System.out;
                 case "/dev/stderr" -> System.err;
                 default -> {
@@ -93,16 +95,16 @@ public class RemoteVineFlowerProvider implements DecompilerProvider {
 
             // CPU-consuming task, requiring a platform thread
             @SuppressWarnings("UnnecessaryLocalVariable")   // make it a local var, in case classloading issue
-            final MethodType entrypointDesc = VF_ENTRYPOINT_TYPE;
+            final MethodType entrypointDesc = MTResolved_VFEntrypoint;
 
             var thread = THREAD_BUILDER.unstarted(() -> {
                 var lookup = MethodHandles.lookup();
 
                 try {
-                    Class<?> c = Class.forName(VF_ENTRYPOINT_CLASS, true, Thread.currentThread().getContextClassLoader());
+                    Class<?> c = Class.forName(CLASSNAME_VFEntrypoint, true, classLoader);
 
                     lookup = MethodHandles.privateLookupIn(c, lookup);
-                    MethodHandle mh = lookup.findStatic(c, VF_ENTRYPOINT_NAME, entrypointDesc);
+                    MethodHandle mh = lookup.findStatic(c, M_VFEntrypoint, entrypointDesc);
                     mh.invokeWithArguments(arguments);
                 } catch (Throwable t) {
                     throw new RuntimeException("Failed to decompile", t);
@@ -121,17 +123,31 @@ public class RemoteVineFlowerProvider implements DecompilerProvider {
         final byte[] clazz = EntrypointFactory.getBytecode();
 
         // Download vineflower
-        var vineflower = downloadVF();
+        var vineflower = getOrDownloadVF();
         var maybeParent = Thread.currentThread().getContextClassLoader().getParent();
         return new URLClassLoader(new URL[]{vineflower.toUri().toURL()}, maybeParent) {
             @Override
             protected Class<?> findClass(String name) throws ClassNotFoundException {
-                if (VF_ENTRYPOINT_CLASS.equals(name)) {
+                if (CLASSNAME_VFEntrypoint.equals(name)) {
                     return defineClass(name, clazz, 0, clazz.length);
                 }
                 return super.findClass(name);
             }
         };
+    }
+
+    private static volatile Path vineflowerJarClass;
+    private static final Object LOCK_getOrDownloadVF = new Object();
+
+    private static Path getOrDownloadVF() throws IOException, HashMismatchException {
+        if (vineflowerJarClass == null) {
+            synchronized (LOCK_getOrDownloadVF) {
+                if (vineflowerJarClass == null) {
+                    vineflowerJarClass = downloadVF();
+                }
+            }
+        }
+        return vineflowerJarClass;
     }
 
     private static Path downloadVF() throws IOException, HashMismatchException {
@@ -150,7 +166,7 @@ public class RemoteVineFlowerProvider implements DecompilerProvider {
             return CLASS_FILE_ORIGINAL.clone();
         }
 
-        private static final Object[] OPTIONS = {
+        private static final ConstantDesc[] OPTIONS = {
                 "asc", 1,       // ascii-strings
                 "iec", 1,       // include-classpath
                 "iib", 1,       // ignore-invalid-bytecode
@@ -158,134 +174,107 @@ public class RemoteVineFlowerProvider implements DecompilerProvider {
                 "log", "INFO"   // log-level
         };
 
+        private static final int INDEX_JAR_IN = 0;      // File jarIn
+        private static final int INDEX_CLASSPATH = 1;   // Collection<File> classPath
+        private static final int INDEX_DIR_OUT = 2;     // File dirOut
+        private static final int INDEX_LOG_STREAM = 3;  // PrintStream logStream
+
         private static byte[] createClass() {
-            ClassWriter cw = new ClassWriter(3);
-            final String className = VF_ENTRYPOINT_CLASS.replace('.', '/');
-            cw.visit(Opcodes.V17, Opcodes.ACC_SYNTHETIC | Opcodes.ACC_SUPER, className, null, "java/lang/Object", null);
-            InstructionAdapter mv;
+            return ClassFile.of().build(CD_VFEntrypoint, cb -> cb
+                    .withFlags(AccessFlag.SYNTHETIC, AccessFlag.SUPER)
+                    .withVersion(ClassFile.JAVA_25_VERSION, 0)  // stick to Java 25 format
+                    .withMethodBody(NAME_makeArray, /*static*/ BSM_makeArray.invocationType(), Modifier.STATIC | Modifier.PRIVATE | AccessFlag.VARARGS.mask(), code -> code
+                            .aload(3)
+                            .areturn()
+                    )
+                    .withMethodBody(M_VFEntrypoint, MT_VFEntrypoint, Modifier.STATIC, code -> {
+                                code
+                                        .invokestatic(CD_Decompiler, "builder", MethodTypeDesc.of(CD_DecompilerBuilder))
+                                        .aload(INDEX_JAR_IN)
+                                        .iconst_1()
+                                        .anewarray(CD_File)
+                                        .dup_x1()   // [File jarIn [File
+                                        .swap()     // [File [File jarIn
+                                        .iconst_0()
+                                        .swap()     // [File [File 0 jarIn
+                                        .aastore();
+                                callBuilder(code, "inputs", CD_FileArray);
 
-            mv = new InstructionAdapter(cw.visitMethod(
-                    Opcodes.ACC_STATIC | Opcodes.ACC_PRIVATE | Opcodes.ACC_VARARGS,
-                    HANDLE_BOOSTRAP_NAME,
-                    HANDLE_BOOTSTRAP_DESC,
-                    null, null
-            ));
-            {
-                mv.visitCode();
+                                code
+                                        .aload(INDEX_DIR_OUT)
+                                        .new_(CD_DirectoryResultSaver)
+                                        .dup()      // File DRS DRS
+                                        .dup2_x1()  // DRS DRS File DRS DRS
+                                        .pop2()     // DRS DRS File
+                                        .invokespecial(CD_DirectoryResultSaver, ConstantDescs.INIT_NAME, MethodTypeDesc.of(ConstantDescs.CD_void, CD_File));
+                                callBuilder(code, "output", CD_IResultSaver);
 
-                mv.load(3, InstructionAdapter.OBJECT_TYPE);
-                mv.areturn(InstructionAdapter.OBJECT_TYPE);
+                                code
+                                        .loadConstant(DynamicConstantDesc.of(BSM_makeArray, OPTIONS));
+                                callBuilder(code, "options", CD_ObjectArray);
 
-                mv.visitMaxs(-1, -1);
-                mv.visitEnd();
-            }
+                                code
+                                        .aload(INDEX_CLASSPATH)
+                                        .iconst_0()
+                                        .anewarray(CD_File)
+                                        .invokeinterface(ConstantDescs.CD_Collection, "toArray", MethodTypeDesc.of(CD_ObjectArray, CD_ObjectArray))
+                                        .checkcast(CD_FileArray);
+                                callBuilder(code, "libraries", CD_FileArray);
 
-            mv = new InstructionAdapter(cw.visitMethod(
-                    Opcodes.ACC_STATIC, VF_ENTRYPOINT_NAME, VF_ENTRYPOINT_TYPE.descriptorString(),
-                    null, null
-            ));
-            createEntrypointMethod(mv, className);
+                                code
+                                        .aload(INDEX_LOG_STREAM)
+                                        .new_(CD_PrintStreamLogger)
+                                        .dup()      // PrintStream PSL PSL
+                                        .dup2_x1()  // PSL PSL PrintStream PSL PSL
+                                        .pop2()     // PSL PSL PrintStream
+                                        .invokespecial(CD_PrintStreamLogger, ConstantDescs.INIT_NAME, MethodTypeDesc.of(ConstantDescs.CD_void, CD_PrintStream));
+                                callBuilder(code, "logger", CD_IFernflowerLogger);
 
-            cw.visitEnd();
-            return cw.toByteArray();
-        }
-
-        private static final int INDEX_JAR_IN = 0;
-        private static final int INDEX_CLASSPATH = 1;
-        private static final int INDEX_DIR_OUT = 2;
-        private static final int INDEX_LOG_STREAM = 3;
-
-        private static void createEntrypointMethod(InstructionAdapter mv, final String className) {
-            mv.visitCode();
-            // var0: File jarIn
-            // var1: Collection<File> classpath
-            // var2: File dirOut
-            // var3: PrintStream logStream
-            final Type t_fileArray = Type.getType(File[].class);
-            final Type t_directoryResultSaver = Type.getObjectType("org/jetbrains/java/decompiler/main/decompiler/DirectoryResultSaver");
-            final Type t_printStreamLogger = Type.getObjectType("org/jetbrains/java/decompiler/main/decompiler/PrintStreamLogger");
-
-            mv.invokestatic(
-                    T_DECOMPILER.getInternalName(), "builder",
-                    Type.getMethodDescriptor(T_DECOMPILER_BUILDER),
-                    false
+                                code
+                                        .invokevirtual(CD_DecompilerBuilder, "build", MethodTypeDesc.of(CD_Decompiler))
+                                        .invokevirtual(CD_Decompiler, "decompile", ConstantDescs.MTD_void)
+                                        .return_();
+                            }
+                    )
             );
-
-            mv.load(INDEX_JAR_IN, InstructionAdapter.OBJECT_TYPE);
-            mv.iconst(1);
-            mv.newarray(Type.getType(File.class));
-            mv.dupX1(); // [File jarIn [File
-            mv.swap();  // [File [File jarIn
-            mv.iconst(0);
-            mv.swap();  // [File [File 0 jarIn
-            mv.astore(InstructionAdapter.OBJECT_TYPE);
-            callBuilder(mv, "inputs", t_fileArray);
-
-            mv.load(INDEX_DIR_OUT, InstructionAdapter.OBJECT_TYPE);
-            mv.anew(t_directoryResultSaver);
-            mv.dup();
-            mv.dup2X1();
-            mv.pop2();
-            mv.invokespecial(t_directoryResultSaver.getInternalName(), "<init>", "(Ljava/io/File;)V", false);
-            callBuilder(mv, "output", Type.getType("Lorg/jetbrains/java/decompiler/main/extern/IResultSaver;"));
-
-            mv.cconst(new ConstantDynamic(
-                    "$", "[Ljava/lang/Object;",
-                    new Handle(Opcodes.H_INVOKESTATIC, className, HANDLE_BOOSTRAP_NAME, HANDLE_BOOTSTRAP_DESC, false),
-                    OPTIONS
-            ));
-            callBuilder(mv, "options", Type.getType("[Ljava/lang/Object;"));
-
-            mv.load(INDEX_CLASSPATH, InstructionAdapter.OBJECT_TYPE);
-            mv.iconst(0);
-            mv.newarray(t_fileArray.getElementType());
-            mv.invokeinterface("java/util/Collection", "toArray", "([Ljava/lang/Object;)[Ljava/lang/Object;");
-            mv.checkcast(t_fileArray);
-            callBuilder(mv, "libraries", t_fileArray);
-
-            mv.load(INDEX_LOG_STREAM, InstructionAdapter.OBJECT_TYPE);
-            mv.anew(t_printStreamLogger);
-            mv.dup();
-            mv.dup2X1();
-            mv.pop2();
-            mv.invokespecial(t_printStreamLogger.getInternalName(), "<init>", "(Ljava/io/PrintStream;)V", false);
-            callBuilder(mv, "logger", Type.getType("Lorg/jetbrains/java/decompiler/main/extern/IFernflowerLogger;"));
-
-            mv.invokevirtual(T_DECOMPILER_BUILDER.getInternalName(), "build", Type.getMethodDescriptor(T_DECOMPILER), false);
-
-            mv.invokevirtual(T_DECOMPILER.getInternalName(), "decompile", "()V", false);
-
-            mv.areturn(Type.VOID_TYPE);
-
-            mv.visitMaxs(-1, -1);
-            mv.visitEnd();
         }
 
-        private static final Type T_DECOMPILER = Type.getType("Lorg/jetbrains/java/decompiler/api/Decompiler;");
-        private static final Type T_DECOMPILER_BUILDER = Type.getType("Lorg/jetbrains/java/decompiler/api/Decompiler$Builder;");
-        private static final String HANDLE_BOOSTRAP_NAME = "makeArray";
-        private static final String HANDLE_BOOTSTRAP_DESC = MethodType.methodType(
-                Object[].class,
-                MethodHandles.Lookup.class, String.class, Class.class, Object[].class
-        ).descriptorString();
+        private static final String NAME_makeArray = "makeArray";
 
-        private static void callBuilder(InstructionAdapter mv, String methodName, Type... paramTypes) {
-            mv.invokevirtual(T_DECOMPILER_BUILDER.getInternalName(), methodName, Type.getMethodDescriptor(T_DECOMPILER_BUILDER, paramTypes), false);
+        private static final ClassDesc CD_ObjectArray = ConstantDescs.CD_Object.arrayType();
+
+        private static final ClassDesc CD_VFEntrypoint = ClassDesc.of(CLASSNAME_VFEntrypoint);
+        private static final MethodTypeDesc MT_VFEntrypoint = MTResolved_VFEntrypoint.describeConstable().orElseThrow(InternalError::new);
+
+        private static final DirectMethodHandleDesc BSM_makeArray = ConstantDescs.ofConstantBootstrap(CD_VFEntrypoint, NAME_makeArray, CD_ObjectArray, CD_ObjectArray);
+
+        private static final ClassDesc CD_Decompiler = ClassDesc.ofInternalName("org/jetbrains/java/decompiler/api/Decompiler");
+        private static final ClassDesc CD_DecompilerBuilder = ClassDesc.ofInternalName("org/jetbrains/java/decompiler/api/Decompiler$Builder");
+        private static final ClassDesc CD_DirectoryResultSaver = ClassDesc.ofInternalName("org/jetbrains/java/decompiler/main/decompiler/DirectoryResultSaver");
+        private static final ClassDesc CD_IResultSaver = ClassDesc.ofInternalName("org/jetbrains/java/decompiler/main/extern/IResultSaver");
+        private static final ClassDesc CD_PrintStreamLogger = ClassDesc.ofInternalName("org/jetbrains/java/decompiler/main/decompiler/PrintStreamLogger");
+        private static final ClassDesc CD_IFernflowerLogger = ClassDesc.ofInternalName("org/jetbrains/java/decompiler/main/extern/IFernflowerLogger");
+        private static final ClassDesc CD_File = File.class.describeConstable().orElseThrow(IncompatibleClassChangeError::new);
+        private static final ClassDesc CD_FileArray = CD_File.arrayType();
+        private static final ClassDesc CD_PrintStream = PrintStream.class.describeConstable().orElseThrow(IncompatibleClassChangeError::new);
+
+        private static void callBuilder(CodeBuilder code, String methodName, ClassDesc... paramTypes) {
+            code.invokevirtual(CD_DecompilerBuilder, methodName, MethodTypeDesc.of(CD_DecompilerBuilder, paramTypes));
         }
 
         private static final byte[] CLASS_FILE_ORIGINAL = createClass();
 
         static {
-            xland.ioutils.xdecompiler.util.DebugUtils.log(6, l -> {
+            xland.ioutils.xdecompiler.util.DebugUtils.log(DebugUtils.VF_DUMP_STUB_CLASS, l -> {
                 try {
                     final byte[] byteCode = getBytecode();
                     var dumpedPath = TempDirs.get().createFile(".class");
                     try (BufferedOutputStream outputStream = new BufferedOutputStream(Files.newOutputStream(dumpedPath))) {
                         outputStream.write(byteCode);
                     }
-                    l.info("Dumped {} into {}", VF_ENTRYPOINT_CLASS, dumpedPath);
+                    l.info("Dumped {} into {}", CLASSNAME_VFEntrypoint, dumpedPath);
                 } catch (Exception e) {
-                    l.warn("Failed to dump class {}", VF_ENTRYPOINT_CLASS);
+                    l.warn("Failed to dump class {}", CLASSNAME_VFEntrypoint);
                 }
             });
         }

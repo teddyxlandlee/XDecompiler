@@ -18,15 +18,21 @@ package xland.ioutils.xdecompiler.mappings;
 import net.fabricmc.mappingio.MappingVisitor;
 import net.fabricmc.mappingio.adapter.ForwardingMappingVisitor;
 import net.fabricmc.mappingio.format.tiny.Tiny1FileReader;
+import net.fabricmc.mappingio.tree.MappingTreeView;
+import net.fabricmc.mappingio.tree.VisitOrder;
+import org.jetbrains.annotations.Nullable;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.URL;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
-final class MappingUtil {
+public final class MappingUtil {
     static void readV1RemoteJar(URL url, MappingVisitor visitor) throws IOException {
         try (ZipInputStream zis = new ZipInputStream(url.openStream())) {
             ZipEntry entry;
@@ -65,4 +71,65 @@ final class MappingUtil {
             }
         };
     }
+
+    static final MappingTreeView EMPTY_MAPPING_TREE_VIEW = new EmptyMappingTreeView();
+
+    public static MappingTreeView emptyMappingTreeView() {
+        return EMPTY_MAPPING_TREE_VIEW;
+    }
+
+    static final class EmptyMappingTreeView implements MappingTreeView {
+        private EmptyMappingTreeView() {}
+
+        @Override
+        public @Nullable String getSrcNamespace() {
+            return null;
+        }
+
+        @Override
+        public List<String> getDstNamespaces() {
+            return Collections.emptyList();
+        }
+
+        @Override
+        public List<? extends MetadataEntryView> getMetadata() {
+            return Collections.emptyList();
+        }
+
+        @Override
+        public List<? extends MetadataEntryView> getMetadata(String key) {
+            return Collections.emptyList();
+        }
+
+        @Override
+        public Collection<? extends ClassMappingView> getClasses() {
+            return Collections.emptyList();
+        }
+
+        @Override
+        public @Nullable ClassMappingView getClass(String srcName) {
+            return null;
+        }
+
+        @Override
+        public void accept(MappingVisitor visitor, VisitOrder order) {
+        }
+
+        @Override
+        public int hashCode() {
+            return 1275563828;
+        }
+
+        @Override
+        public String toString() {
+            return "MappingUtil.EmptyMappingTreeView";
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            return obj instanceof EmptyMappingTreeView;
+        }
+    }
+
+    private MappingUtil() {}
 }

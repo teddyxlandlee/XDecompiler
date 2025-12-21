@@ -29,7 +29,7 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
-public class FileUtils {
+public final class FileUtils {
     public static void deleteRecursively(Path root, boolean retainRoot) throws IOException {
         Files.walkFileTree(root, new SimpleFileVisitor<>() {
             @Override
@@ -81,4 +81,20 @@ public class FileUtils {
             }
         }
     }
+
+    public static void copyDirRecursively(Path src, Path dst) throws IOException {
+        try (var stream = Files.walk(src)) {
+            stream.forEach(path -> {
+                try {
+                    Files.copy(path, dst.resolve(src.relativize(path)));
+                } catch (IOException e) {
+                    throw new UncheckedIOException(e);
+                }
+            });
+        } catch (UncheckedIOException e) {
+            throw e.getCause();
+        }
+    }
+
+    private FileUtils() {}
 }
