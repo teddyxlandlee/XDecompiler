@@ -34,7 +34,7 @@ public class ClassMerger {
         private final Map<String, T> entriesClient, entriesServer;
         private final List<String> entryNames;
 
-        public Merger(List<T> entriesClient, List<T> entriesServer) {
+        public Merger(List<? extends T> entriesClient, List<? extends T> entriesServer) {
             this.entriesClient = new LinkedHashMap<>();
             this.entriesServer = new LinkedHashMap<>();
 
@@ -47,7 +47,7 @@ public class ClassMerger {
         public abstract String getName(T entry);
         public abstract void applySide(T entry, String side);
 
-        private List<String> toMap(List<T> entries, Map<String, T> map) {
+        private List<String> toMap(List<? extends T> entries, Map<String, ? super T> map) {
             List<String> list = new ArrayList<>(entries.size());
             for (T entry : entries) {
                 String name = getName(entry);
@@ -57,12 +57,13 @@ public class ClassMerger {
             return list;
         }
 
-        public void merge(List<T> list) {
+        public void merge(List<? super T> list) {
             for (String s : entryNames) {
                 T entryClient = entriesClient.get(s);
                 T entryServer = entriesServer.get(s);
 
                 if (entryClient != null && entryServer != null) {
+                    // arbitrarily use client entry if both are present
                     list.add(entryClient);
                 } else if (entryClient != null) {
                     applySide(entryClient, "CLIENT");
@@ -106,10 +107,17 @@ public class ClassMerger {
     }
 
     public ClassMerger() {
-
     }
 
     public byte[] merge(byte[] classClient, byte[] classServer) {
+        Objects.requireNonNull(classClient, "classClient");
+        Objects.requireNonNull(classServer, "classServer");
+
+        if (Arrays.equals(classClient, classServer)) {
+            // Identical classes, no need to merge
+            return classClient;
+        }
+
         ClassReader readerC = new ClassReader(classClient);
         ClassReader readerS = new ClassReader(classServer);
         ClassWriter writer = new ClassWriter(0);
