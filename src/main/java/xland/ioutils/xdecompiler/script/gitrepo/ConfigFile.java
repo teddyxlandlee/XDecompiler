@@ -158,7 +158,7 @@ record ConfigFile(boolean releaseOnly, List<String> mappings, String decompiler,
         return list.subList(sub, end);
     }
 
-    interface Branch extends ProcessEntriesProvider {
+    sealed interface Branch extends ProcessEntriesProvider {
         String branchName();
         @Nullable String parentBranch();
 

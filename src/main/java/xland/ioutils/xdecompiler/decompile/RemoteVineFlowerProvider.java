@@ -101,7 +101,7 @@ public class RemoteVineFlowerProvider implements DecompilerProvider {
                 var lookup = MethodHandles.lookup();
 
                 try {
-                    Class<?> c = Class.forName(CLASSNAME_VFEntrypoint, true, Thread.currentThread().getContextClassLoader());
+                    Class<?> c = Class.forName(CLASSNAME_VFEntrypoint, true, classLoader);
 
                     lookup = MethodHandles.privateLookupIn(c, lookup);
                     MethodHandle mh = lookup.findStatic(c, M_VFEntrypoint, entrypointDesc);
@@ -182,6 +182,7 @@ public class RemoteVineFlowerProvider implements DecompilerProvider {
         private static byte[] createClass() {
             return ClassFile.of().build(CD_VFEntrypoint, cb -> cb
                     .withFlags(AccessFlag.SYNTHETIC, AccessFlag.SUPER)
+                    .withVersion(ClassFile.JAVA_25_VERSION, 0)  // stick to Java 25 format
                     .withMethodBody(NAME_makeArray, /*static*/ BSM_makeArray.invocationType(), Modifier.STATIC | Modifier.PRIVATE | AccessFlag.VARARGS.mask(), code -> code
                             .aload(3)
                             .areturn()
@@ -241,11 +242,6 @@ public class RemoteVineFlowerProvider implements DecompilerProvider {
         private static final String NAME_makeArray = "makeArray";
 
         private static final ClassDesc CD_ObjectArray = ConstantDescs.CD_Object.arrayType();
-        @Deprecated
-        private static final MethodTypeDesc MT_makeArray = MethodTypeDesc.of(
-                CD_ObjectArray,
-                ConstantDescs.CD_MethodHandles_Lookup, ConstantDescs.CD_String, ConstantDescs.CD_Class, CD_ObjectArray
-        );
 
         private static final ClassDesc CD_VFEntrypoint = ClassDesc.of(CLASSNAME_VFEntrypoint);
         private static final MethodTypeDesc MT_VFEntrypoint = MTResolved_VFEntrypoint.describeConstable().orElseThrow(InternalError::new);
