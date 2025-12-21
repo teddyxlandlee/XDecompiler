@@ -20,6 +20,7 @@ import net.fabricmc.mappingio.adapter.MappingSourceNsSwitch;
 import net.fabricmc.mappingio.format.proguard.ProGuardFileReader;
 import net.fabricmc.mappingio.tree.MappingTreeView;
 import net.fabricmc.mappingio.tree.MemoryMappingTree;
+import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
@@ -46,18 +47,14 @@ public class MojMapsMappingProvider implements MappingProvider {
         return "mojmaps";
     }
 
-    public static boolean isUnobfuscated(ConcernedVersionDetail detail) {
-        return xland.ioutils.xdecompiler.util.DebugUtils.flagged(7) || detail.isUnobfuscated();
-    }
-
     @Override
     @NotNull
     public MappingTreeView prepare(ClassMemberInfoPool classMembers, VersionManifest.VersionMeta versionMeta, String arg) throws IOException {
         final ConcernedVersionDetail detail = versionMeta.getOrFetchDetail();
 
-        if (isUnobfuscated(detail)) {
+        if (detail.isUnobfuscated()) {
             // as-is; we don't need to remap anymore
-            return MappingUtil.EMPTY_MAPPING_TREE_VIEW;
+            return MappingUtil.emptyMappingTreeView();
         }
 
         final RemoteFile clientMappings = detail.clientMappings(), serverMappings = detail.serverMappings();

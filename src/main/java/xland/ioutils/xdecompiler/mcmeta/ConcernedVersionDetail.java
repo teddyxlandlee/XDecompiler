@@ -82,15 +82,17 @@ public record ConcernedVersionDetail(RemoteFile clientJar, RemoteFile serverJar,
                 .filter(Objects::nonNull)
                 .toList();
 
-        // What is sure is that the "experimental releases" are not included in launcher meta, whose ids are suffixes with `_unobfuscated`.
-        // reference: https://www.minecraft.net/zh-hans/article/removing-obfuscation-in-java-edition
         boolean isUnobfuscated = false;
         ChronoZonedDateTime<?> releaseTime = VersionManifest.VersionMeta.zonedDateTime(json, "releaseTime");
         if (TIME_POST_OBF_REMOVAL.isBefore(releaseTime)) {
+            // Versions released after 1.21.11 (e.g. 26.1-snapshot-1) are unobfuscated.
             isUnobfuscated = true;
         } else if (json.at("type").isString() && "unobfuscated".equals(json.at("type").asString())) {
+            // What is sure is that the "experimental releases" are not included in launcher meta, whose ids are suffixes with `_unobfuscated`.
+            // reference: https://www.minecraft.net/zh-hans/article/removing-obfuscation-in-java-edition
             isUnobfuscated = true;
         } else if (clientMappings == null && serverMappings == null) {
+            // Beware that pre-1.14.4 versions are obfuscated but without mappings.
             isUnobfuscated = TIME_PRE_OBF_REMOVAL.isBefore(releaseTime);
         }
 

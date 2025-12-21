@@ -32,7 +32,7 @@ import java.util.List;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
-final class MappingUtil {
+public final class MappingUtil {
     static void readV1RemoteJar(URL url, MappingVisitor visitor) throws IOException {
         try (ZipInputStream zis = new ZipInputStream(url.openStream())) {
             ZipEntry entry;
@@ -74,7 +74,11 @@ final class MappingUtil {
 
     static final MappingTreeView EMPTY_MAPPING_TREE_VIEW = new EmptyMappingTreeView();
 
-    private static final class EmptyMappingTreeView implements MappingTreeView {
+    public static MappingTreeView emptyMappingTreeView() {
+        return EMPTY_MAPPING_TREE_VIEW;
+    }
+
+    static final class EmptyMappingTreeView implements MappingTreeView {
         private EmptyMappingTreeView() {}
 
         @Override
@@ -110,5 +114,22 @@ final class MappingUtil {
         @Override
         public void accept(MappingVisitor visitor, VisitOrder order) {
         }
+
+        @Override
+        public int hashCode() {
+            return 1275563828;
+        }
+
+        @Override
+        public String toString() {
+            return "MappingUtil.EmptyMappingTreeView";
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            return obj instanceof EmptyMappingTreeView;
+        }
     }
+
+    private MappingUtil() {}
 }

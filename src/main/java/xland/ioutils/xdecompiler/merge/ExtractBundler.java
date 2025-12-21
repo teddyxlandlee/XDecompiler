@@ -95,7 +95,7 @@ public final class ExtractBundler {
 
     @FunctionalInterface
     private interface ResourceParser<T> {
-        T parse(BufferedReader param1BufferedReader) throws IOException;
+        T parse(BufferedReader reader) throws IOException;
     }
 
     private record FileEntry(String hash, String id, String path) {

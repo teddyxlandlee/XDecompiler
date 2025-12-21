@@ -30,7 +30,6 @@ import xland.ioutils.xdecompiler.mcmeta.libraries.MavenArtifact;
 import xland.ioutils.xdecompiler.util.LogUtils;
 import xland.ioutils.xdecompiler.util.PublicProperties;
 
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URL;
@@ -55,10 +54,16 @@ public class YarnMappingProvider implements MappingProvider {
     @Override
     @NotNull
     public MappingTreeView prepare(ClassMemberInfoPool classMemberInfoPool, VersionManifest.VersionMeta versionMeta, String arg) throws IOException {
+        // shortcut: unobfuscated versions has no intermediary or yarn mappings
+        if (versionMeta.getOrFetchDetail().isUnobfuscated()) {
+            return MappingUtil.emptyMappingTreeView();
+        }
+
         final String versionId = versionMeta.id();
         Json meta = Json.read(URI.create("https://meta.fabricmc.net/v2/versions/yarn/" + versionId).toURL());
         if (meta.asJsonList().isEmpty()) {
-            throw new FileNotFoundException("Missing yarn for version " + versionId);
+            LOGGER.warn("Missing yarn for version {}", versionId);
+            return MappingUtil.emptyMappingTreeView();
         }
 
         if (arg.isEmpty() || "latest".equalsIgnoreCase(arg))

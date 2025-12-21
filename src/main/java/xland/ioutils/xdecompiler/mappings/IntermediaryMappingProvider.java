@@ -19,16 +19,18 @@ import mjson.Json;
 import net.fabricmc.mappingio.tree.MappingTreeView;
 import net.fabricmc.mappingio.tree.MemoryMappingTree;
 import org.jetbrains.annotations.NotNull;
+import org.slf4j.Logger;
 import xland.ioutils.xdecompiler.mcmeta.VersionManifest;
 import xland.ioutils.xdecompiler.mcmeta.libraries.MavenArtifact;
+import xland.ioutils.xdecompiler.util.LogUtils;
 import xland.ioutils.xdecompiler.util.PublicProperties;
 
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URL;
 
 public class IntermediaryMappingProvider implements MappingProvider {
+    private static final Logger LOGGER = LogUtils.getLogger();
 
     @Override
     public String id() {
@@ -43,10 +45,16 @@ public class IntermediaryMappingProvider implements MappingProvider {
     @Override
     @NotNull
     public MappingTreeView prepare(ClassMemberInfoPool classMemberInfoPool, VersionManifest.VersionMeta versionMeta, String arg) throws IOException {
+        // shortcut: unobfuscated versions has no intermediary or yarn mappings
+        if (versionMeta.getOrFetchDetail().isUnobfuscated()) {
+            return MappingUtil.emptyMappingTreeView();
+        }
+
         final String versionId = versionMeta.id();
         Json meta = Json.read(URI.create("https://meta.fabricmc.net/v2/versions/intermediary/" + versionId).toURL());
         if (meta.asJsonList().isEmpty()) {
-            throw new FileNotFoundException("Missing intermediary for version " + versionId);
+            LOGGER.warn("Missing intermediary for version {}", versionId);
+            return MappingUtil.emptyMappingTreeView();
         }
         MavenArtifact artifact = MavenArtifact.of(meta.at(0).at("maven").asString());
 
