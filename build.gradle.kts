@@ -3,8 +3,8 @@ import java.time.ZonedDateTime
 
 plugins {
     id("java")
-    id("com.diffplug.spotless") version "6.20.0"
-    id("com.github.johnrengelman.shadow") version "8.1.1"
+    id("com.diffplug.spotless") version "8.1.0"
+    id("com.gradleup.shadow") version "9.3.0"
     `maven-publish`
 }
 
@@ -40,11 +40,6 @@ spotless {
         licenseHeaderFile("header.txt").updateYearWithLatest(true)
     }
 }
-
-//tasks.getByName("compileVineflowerDecompilerJava", JavaCompile::class) {
-//    mustRunAfter("compileJava")
-//    classpath += sourceSets.main.get().output + sourceSets.main.get().compileClasspath
-//}
 
 dependencies {
     val asmVersion = project.property("asm_version")!!

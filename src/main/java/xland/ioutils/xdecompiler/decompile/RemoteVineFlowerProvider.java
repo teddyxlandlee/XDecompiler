@@ -206,7 +206,7 @@ public class RemoteVineFlowerProvider implements DecompilerProvider {
                                         .dup()      // File DRS DRS
                                         .dup2_x1()  // DRS DRS File DRS DRS
                                         .pop2()     // DRS DRS File
-                                        .invokespecial(CD_PrintStreamLogger, ConstantDescs.INIT_NAME, MethodTypeDesc.of(ConstantDescs.CD_void, CD_File));
+                                        .invokespecial(CD_DirectoryResultSaver, ConstantDescs.INIT_NAME, MethodTypeDesc.of(ConstantDescs.CD_void, CD_File));
                                 callBuilder(code, "output", CD_IResultSaver);
 
                                 code
