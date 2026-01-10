@@ -65,18 +65,18 @@ public record Main(String version, DecompilerProvider decompilerProvider,
         // 2. merge
         LOGGER.info("2. Preparing client & server jars...");
         final File clientJar = TempDirs.get().createFileDefaultFs();
-        final File serverJar0 = TempDirs.get().createFileDefaultFs();
+        final File serverJarUnprocessed = TempDirs.get().createFileDefaultFs();
         detail.clientJar().download(clientJar.toPath());
-        detail.serverJar().download(serverJar0.toPath());
+        detail.serverJar().download(serverJarUnprocessed.toPath());
         File serverJar;
-        if (isBundledServerJar(serverJar0)) {
+        if (isBundledServerJar(serverJarUnprocessed)) {
             LOGGER.info("\tDetected the server jar is bundled. Extracting...");
             serverJar = TempDirs.get().createFileDefaultFs();
-            try (JarFile jf = new JarFile(serverJar0)) {
+            try (JarFile jf = new JarFile(serverJarUnprocessed)) {
                 ExtractBundler.run(jf, serverJar.toPath());
             }
         } else {
-            serverJar = serverJar0;
+            serverJar = serverJarUnprocessed;
             LOGGER.info("\tServer jar is legacy, keep...");
         }
 

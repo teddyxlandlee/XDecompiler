@@ -155,10 +155,16 @@ public final class DiffTwoScript extends Script {
                     .withRequiredArg()
                     .defaultsTo("out2");
 
-            if (args.length == 0)
+            var help = parser.accepts("help").forHelp();
+
+            if (args.length == 0) {
                 printHelpAndExit(parser);
+            }
 
             final OptionSet parsed = parser.parse(args);
+            if (parsed.has(help)) {
+                printHelpAndExit(parser);
+            }
 
             List<String> mappings = parsed.valuesOf(mappings0);
             String decompiler = parsed.valueOf(decompiler0);
@@ -170,8 +176,8 @@ public final class DiffTwoScript extends Script {
 
             String out1 = parsed.valueOf(dir1);
             String out2 = parsed.valueOf(dir2);
-            if (checkValidSubdirName(out1)) printHelpAndExit(parser);
-            if (checkValidSubdirName(out2)) printHelpAndExit(parser);
+            if (isSubdirNameInvalid(out1)) printHelpAndExit(parser);
+            if (isSubdirNameInvalid(out2)) printHelpAndExit(parser);
 
             boolean hasExc1 = parsed.has(exc1), hasExc2 = parsed.has(exc2);
 
@@ -301,11 +307,11 @@ public final class DiffTwoScript extends Script {
             ".tar.bz2", ".tb2", ".tbz", ".tbz2", ".tz2"
     );
 
-    private static boolean checkValidSubdirName(String t) {
-        String s = t.toLowerCase(Locale.ROOT);
+    private static boolean isSubdirNameInvalid(String dirName) {
+        String lowercase = dirName.toLowerCase(Locale.ROOT);
         for (String format : ILLEGAL_FORMATS) {
-            if (s.endsWith(format)) {
-                LOGGER.error("Invalid subdir name: {}", t);
+            if (lowercase.endsWith(format)) {
+                LOGGER.error("Invalid subdir name: {}", dirName);
                 return true;
             }
         }

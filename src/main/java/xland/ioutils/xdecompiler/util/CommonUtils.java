@@ -15,7 +15,6 @@
  */
 package xland.ioutils.xdecompiler.util;
 
-import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.util.*;
 import java.util.random.RandomGenerator;
@@ -70,9 +69,9 @@ public final class CommonUtils {
     }
 
     private static <E> List<E> mergePreserveOrderNRA(List<? extends E> first, List<? extends E> second) {
-        List<E> out = new ArrayList<>();
-        Set<E> firstSet = new HashSet<>(first);
-        Set<E> secondSet = new HashSet<>(second);
+        ArrayList<E> out = new ArrayList<>();
+        HashSet<E> firstSet = new HashSet<>(first);
+        HashSet<E> secondSet = new HashSet<>(second);
 
         ListIterator<? extends E> firstIter = first.listIterator();
         ListIterator<? extends E> secondIter = second.listIterator();
@@ -119,13 +118,13 @@ public final class CommonUtils {
         throw (T) t;
     }
 
-    private static final byte[] CHAR_POOL_NANO_ID = "0123456789abcdefghijklmnopqrstuvwxyz".getBytes(StandardCharsets.ISO_8859_1);
+    private static final String CHAR_POOL_NANO_ID = "0123456789abcdefghijklmnopqrstuvwxyz";
     private static final RandomGenerator RANDOM_NANO_ID = new SecureRandom();
     private static final int NANO_ID_DEFAULT_LEN = 16;
 
     public static String newNanoID(int len) {
-        return RANDOM_NANO_ID.ints(len, 0, CHAR_POOL_NANO_ID.length)
-                .map(i -> CHAR_POOL_NANO_ID[i])
+        return RANDOM_NANO_ID.ints(len, 0, CHAR_POOL_NANO_ID.length())
+                .map(CHAR_POOL_NANO_ID::charAt)
                 .collect(StringBuilder::new, (sb, i) -> sb.append((char)i), StringBuilder::append)
                 .toString();
     }

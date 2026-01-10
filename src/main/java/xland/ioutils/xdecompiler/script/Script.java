@@ -16,14 +16,11 @@
 package xland.ioutils.xdecompiler.script;
 
 import joptsimple.OptionParser;
-import xland.ioutils.xdecompiler.script.difftwo.DiffTwoScript;
-import xland.ioutils.xdecompiler.script.gitrepo.GitRepoScript;
 import xland.ioutils.xdecompiler.util.CommonUtils;
 
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
 import java.util.Locale;
-import java.util.Map;
 
 public abstract class Script {
     protected abstract void runScript() throws Exception;
@@ -48,15 +45,10 @@ public abstract class Script {
         System.exit(-1);
     }
 
-    private static final Map<String, Class<? extends Script>> SCRIPTS = Map.of(
-            "gitrepo", GitRepoScript.class,
-            "difftwo", DiffTwoScript.class
-    );
-
-    private static final ThreadLocal<Boolean> EXISTENCE = ThreadLocal.withInitial(() -> Boolean.FALSE);
+    private static final ScopedValue<Void> EXISTENCE = ScopedValue.newInstance();
 
     public static void main(String[] rawArgs) throws Throwable {
-        if (EXISTENCE.get())
+        if (EXISTENCE.isBound())
             throw new IllegalStateException("Calling myself");
 
         if (rawArgs.length == 0 || "--help".equals(rawArgs[0])) {
@@ -64,31 +56,33 @@ public abstract class Script {
             return;
         }
 
+        var scripts = ScriptProvider.availableScripts();
+
         final String k = rawArgs[0].toLowerCase(Locale.ROOT);
-        if (SCRIPTS.containsKey(k)) {
+        if (scripts.containsKey(k)) {
             var lookup = MethodHandles.lookup();
-            final Class<? extends Script> c = SCRIPTS.get(k);
+            final Class<? extends Script> c = scripts.get(k);
             var handle = lookup.findStatic(c, "main", MethodType.methodType(void.class, String[].class));
 
             final int len = rawArgs.length - 1;
             String[] args = new String[len];
             System.arraycopy(rawArgs, 1, args, 0, len);
 
-            try {
-                EXISTENCE.set(Boolean.TRUE);
+            ScopedValue.where(EXISTENCE, null).call(() -> {
                 handle.asFixedArity().bindTo(args).invoke();
-            } finally {
-                EXISTENCE.remove();
-            }
+                return null;
+            });
         } else {
             printHelp0();
         }
     }
 
     private static void printHelp0() {
-        System.out.printf("Usage: java -cp XDecompiler.jar %s " +
+        System.out.printf(
+                "Usage: java -jar XDecompiler.jar --run-script " +
                 "<script> <args...>%n" +
                 "Available scripts: %s%n",
-                Script.class.getName(), SCRIPTS.keySet());
+                ScriptProvider.availableScripts().keySet()
+        );
     }
 }

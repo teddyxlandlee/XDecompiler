@@ -128,9 +128,16 @@ public final class GitRepoScript extends Script {
                     .defaultsTo(Duration.ofMinutes(5 * 60 + 30));
             var stopPoint0 = parser.accepts("stops-at").withRequiredArg();
 
-            final OptionSet parsed = parser.parse(args);
-            if (args.length == 0)
+            var help = parser.accepts("help").forHelp();
+
+            if (args.length == 0) {
                 printHelpAndExit(parser);
+            }
+
+            final OptionSet parsed = parser.parse(args);
+            if (parsed.has(help)) {
+                printHelpAndExit(parser);
+            }
 
             final Map<ProcessType, String> overrideCommandsMap = new HashMap<>();
             parsed.valuesOf(overrideCommands0).forEach(s -> ProcessType.override(s, overrideCommandsMap));
