@@ -25,7 +25,7 @@ import xland.ioutils.xdecompiler.util.ConcurrentUtils;
 
 import java.net.MalformedURLException;
 import java.nio.file.Path;
-import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.chrono.ChronoZonedDateTime;
 import java.util.Collection;
@@ -55,10 +55,10 @@ public record ConcernedVersionDetail(RemoteFile clientJar, RemoteFile serverJar,
     }
 
     private static final ChronoZonedDateTime<?> TIME_PRE_OBF_REMOVAL = ZonedDateTime.of(
-            2025, 10, 30, 0, 0, 0, 0, ZoneId.of("UTC")
+            2025, 10, 30, 0, 0, 0, 0, ZoneOffset.UTC
     );
     private static final ChronoZonedDateTime<?> TIME_POST_OBF_REMOVAL = ZonedDateTime.of(
-            2025, 12, 12, 0, 0, 0, 0, ZoneId.of("UTC")
+            2025, 12, 12, 0, 0, 0, 0, ZoneOffset.UTC
     );
 
     public static ConcernedVersionDetail fromJson(Json json) {
