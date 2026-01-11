@@ -18,8 +18,8 @@ package xland.ioutils.xdecompiler.merge;
 import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
+import org.objectweb.asm.Opcodes;
 
-@Deprecated
 public class SnowmanClassVisitor extends ClassVisitor {
 	public static class SnowmanMethodVisitor extends MethodVisitor {
 		public SnowmanMethodVisitor(int api, MethodVisitor methodVisitor) {
@@ -54,6 +54,10 @@ public class SnowmanClassVisitor extends ClassVisitor {
 
 	public SnowmanClassVisitor(int api, ClassVisitor cv) {
 		super(api, cv);
+	}
+
+	SnowmanClassVisitor(ClassVisitor cv) {
+		this(Opcodes.ASM9, cv);
 	}
 
 	@Override

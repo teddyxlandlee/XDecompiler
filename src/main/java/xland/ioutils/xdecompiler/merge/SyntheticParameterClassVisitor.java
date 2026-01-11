@@ -28,7 +28,6 @@ import org.objectweb.asm.Opcodes;
  * constructor. We then check if the constructor matches our guess, and if so, offset all
  * parameter annotations.
  */
-@Deprecated
 public class SyntheticParameterClassVisitor extends ClassVisitor {
     private static class SyntheticMethodVisitor extends MethodVisitor {
         private final int offset;
@@ -56,6 +55,10 @@ public class SyntheticParameterClassVisitor extends ClassVisitor {
 
     public SyntheticParameterClassVisitor(int api, ClassVisitor cv) {
         super(api, cv);
+    }
+
+    SyntheticParameterClassVisitor(ClassVisitor cv) {
+        this(Opcodes.ASM9, cv);
     }
 
     @Override

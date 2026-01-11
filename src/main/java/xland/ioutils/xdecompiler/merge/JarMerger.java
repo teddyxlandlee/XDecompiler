@@ -17,6 +17,7 @@ package xland.ioutils.xdecompiler.merge;
 
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.Nullable;
+import org.objectweb.asm.ClassVisitor;
 import xland.ioutils.xdecompiler.util.CommonUtils;
 import xland.ioutils.xdecompiler.util.ConcurrentUtils;
 
@@ -24,8 +25,6 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
-import java.lang.classfile.ClassTransform;
-import java.lang.constant.ClassDesc;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -33,7 +32,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.Function;
+import java.util.function.UnaryOperator;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 import java.util.zip.ZipOutputStream;
@@ -130,11 +129,11 @@ public class JarMerger implements AutoCloseable {
         entriesAll.addAll(entriesClient.keySet());
         entriesAll.addAll(entriesServer.keySet());
 
-        var mergerExtraTransformers = new ArrayList<Function<ClassDesc, ClassTransform>>(2);
-        if (this.removeSnowmen) mergerExtraTransformers.add(_ -> new SnowmanRemover());
-        if (this.offsetSyntheticsParams) mergerExtraTransformers.add(SyntheticParameterFixer::new);
+        ArrayList<UnaryOperator<ClassVisitor>> mergerExtraTransformers = new ArrayList<>(2);
+        if (this.removeSnowmen) mergerExtraTransformers.add(SnowmanClassVisitor::new);
+        if (this.offsetSyntheticsParams) mergerExtraTransformers.add(SyntheticParameterClassVisitor::new);
         
-        ClassMerger cm = new ClassFileMerger(mergerExtraTransformers);
+        ClassMerger cm = new ASMClassMerger(mergerExtraTransformers);
 
         BlockingQueue<Entry> entryQueue = new ArrayBlockingQueue<>(entriesAll.size());
         AtomicBoolean isComplete = new AtomicBoolean();

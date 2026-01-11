@@ -29,6 +29,7 @@ import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
+@Deprecated
 public record ClassFileMerger(List<Function<ClassDesc, ClassTransform>> postTransformers) implements ClassMerger {
     private static final ClassDesc CD_Side = ClassDesc.ofInternalName("net/fabricmc/api/EnvType");
     private static final ClassDesc CD_Itf = ClassDesc.ofInternalName("net/fabricmc/api/EnvironmentInterface");

@@ -27,7 +27,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.UnaryOperator;
 
-@Deprecated
+//@Deprecated
 public record ASMClassMerger(List<UnaryOperator<ClassVisitor>> postVisitors) implements ClassMerger {
     private static final String SIDE_DESCRIPTOR = "Lnet/fabricmc/api/EnvType;";
     private static final String ITF_DESCRIPTOR = "Lnet/fabricmc/api/EnvironmentInterface;";
@@ -123,7 +123,9 @@ public record ASMClassMerger(List<UnaryOperator<ClassVisitor>> postVisitors) imp
         ClassNode nodeS = new ClassNode(Opcodes.ASM9);
         readerS.accept(nodeS, 0);
 
-        ClassNode nodeOut = ShallowCopyClassNode.copy(nodeC);
+        ClassNode nodeOut = ClassNodeReflections.copy(nodeC);
+        ClassNodeReflections.initLists(nodeC);
+        ClassNodeReflections.initLists(nodeS);
 
         // Interfaces - sided-mark later
         List<String> clientInterfaces = new ArrayList<>();
