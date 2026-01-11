@@ -40,7 +40,8 @@ import java.util.*;
 public class RemoteVineFlowerProvider implements DecompilerProvider {
     private static final Logger LOGGER = LogUtils.getLogger();
 
-    private static final String CLASSNAME_VFEntrypoint = "xland.ioutils.xdecompiler.decompile.RemoteVineFlowerProvider$1-VineFlowerEntrypoint";
+    private static final String ENTRYPOINT_SIMPLE_NAME = "RemoteVineFlowerProvider$1-VineFlowerEntrypoint";
+    private static final String CLASSNAME_VFEntrypoint = entrypointName();
     private static final String M_VFEntrypoint = "decompile";
     private static final MethodType MTResolved_VFEntrypoint = MethodType.methodType(
             void.class,
@@ -50,6 +51,12 @@ public class RemoteVineFlowerProvider implements DecompilerProvider {
             File.class,         // dirOut
             PrintStream.class   // logStream
     );
+
+    private static String entrypointName() {
+        String packageName = RemoteVineFlowerProvider.class.getPackageName();
+        if (packageName.isEmpty()) return ENTRYPOINT_SIMPLE_NAME;
+        return packageName + "." + ENTRYPOINT_SIMPLE_NAME;
+    }
 
     private static final Thread.Builder THREAD_BUILDER = Thread.ofPlatform().name("vineflower-instance-", 1);
 
@@ -94,8 +101,6 @@ public class RemoteVineFlowerProvider implements DecompilerProvider {
             );
 
             // CPU-consuming task, requiring a platform thread
-            @SuppressWarnings("UnnecessaryLocalVariable")   // make it a local var, in case classloading issue
-            final MethodType entrypointDesc = MTResolved_VFEntrypoint;
 
             var thread = THREAD_BUILDER.unstarted(() -> {
                 var lookup = MethodHandles.lookup();
@@ -104,7 +109,7 @@ public class RemoteVineFlowerProvider implements DecompilerProvider {
                     Class<?> c = Class.forName(CLASSNAME_VFEntrypoint, true, classLoader);
 
                     lookup = MethodHandles.privateLookupIn(c, lookup);
-                    MethodHandle mh = lookup.findStatic(c, M_VFEntrypoint, entrypointDesc);
+                    MethodHandle mh = lookup.findStatic(c, M_VFEntrypoint, MTResolved_VFEntrypoint);
                     mh.invokeWithArguments(arguments);
                 } catch (Throwable t) {
                     throw new RuntimeException("Failed to decompile", t);
@@ -183,7 +188,7 @@ public class RemoteVineFlowerProvider implements DecompilerProvider {
             return ClassFile.of().build(CD_VFEntrypoint, cb -> cb
                     .withFlags(AccessFlag.SYNTHETIC, AccessFlag.SUPER)
                     .withVersion(ClassFile.JAVA_25_VERSION, 0)  // stick to Java 25 format
-                    .withMethodBody(NAME_makeArray, /*static*/ BSM_makeArray.invocationType(), Modifier.STATIC | Modifier.PRIVATE | AccessFlag.VARARGS.mask(), code -> code
+                    .withMethodBody(NAME_makeArray, /*static*/ BSM_makeArray.invocationType(), ClassFile.ACC_STATIC | ClassFile.ACC_PRIVATE | ClassFile.ACC_VARARGS, code -> code
                             .aload(3)
                             .areturn()
                     )

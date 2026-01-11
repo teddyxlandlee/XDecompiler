@@ -37,24 +37,32 @@ public record ClassFileMerger(List<Function<ClassDesc, ClassTransform>> postTran
 
     @Override
     public byte @NotNull [] merge(byte @Nullable [] clientClass, byte @Nullable [] serverClass) {
+        final ClassFile context = ClassFile.of();
+        final ClassModel baseModel;
+        ClassTransform transform;
+
         if (Arrays.equals(clientClass, serverClass)) {
             if (clientClass == null) throw new IllegalArgumentException("clientClass and serverClass cannot both be null");
-            return clientClass;
-        }
 
-        final ClassFile context = ClassFile.of();
-        final ClassModel clientModel = clientClass != null ? context.parse(clientClass) : null;
-        final ClassModel serverModel = serverClass != null ? context.parse(serverClass) : null;
-        ClassModel baseModel = clientModel != null ? clientModel : serverModel;
-        Objects.requireNonNull(baseModel);  // guaranteed
+            if (postTransformers.isEmpty()) {
+                return clientClass;
+            } else {
+                baseModel = context.parse(clientClass);
+                transform = ClassTransform.ACCEPT_ALL;
+            }
+        } else {
+            final ClassModel clientModel = clientClass != null ? context.parse(clientClass) : null;
+            final ClassModel serverModel = serverClass != null ? context.parse(serverClass) : null;
+            baseModel = clientModel != null ? clientModel : serverModel;
+            Objects.requireNonNull(baseModel);  // guaranteed
 
-        ClassTransform transform;
-        if (clientModel != null && serverModel != null) {
-            transform = new Transform(clientModel, serverModel);
-        } else if (clientModel != null) {
-            transform = MemberTransform.asClassTransform("CLIENT");
-        } else {    // serverModel != null
-            transform = MemberTransform.asClassTransform("SERVER");
+            if (clientModel != null && serverModel != null) {
+                transform = new Transform(clientModel, serverModel);
+            } else if (clientModel != null) {
+                transform = MemberTransform.asClassTransform("CLIENT");
+            } else {    // serverModel != null
+                transform = MemberTransform.asClassTransform("SERVER");
+            }
         }
 
         for (var postTransformer : postTransformers) {
