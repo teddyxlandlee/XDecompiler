@@ -21,10 +21,15 @@ import java.util.function.*;
 import java.util.random.RandomGenerator;
 
 public final class CommonUtils {
-    public static <E> List<E> mergePreserveOrder(List<? extends E> first, List<? extends E> second) {
+    public static <E, K> List<E> mergePreserveOrder(List<? extends E> first, List<? extends E> second, Function<? super E, ? extends K> keyExtractor) {
         var result = new ArrayList<E>(first.size() + second.size());
-        new Merger<E>(result::add, result::add, (a, _) -> result.add(a)).mergePreserveOrder(first, second, Function.identity());
+        Merger.<E>samePath(dropSecond(), result::add).mergePreserveOrder(first, second, keyExtractor);
+        new Merger<E>(result::add, result::add, dropSecond(result::add)).mergePreserveOrder(first, second, Function.identity());
         return result;
+    }
+
+    public static <E> List<E> mergePreserveOrder(List<? extends E> first, List<? extends E> second) {
+        return mergePreserveOrder(first, second, Function.identity());
     }
 
     public static void sneakyThrow(Throwable t) {

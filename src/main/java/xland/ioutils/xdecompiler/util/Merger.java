@@ -39,13 +39,18 @@ public record Merger<E>(Consumer<? super E> firstOnlyConsumer,
         );
     }
 
+    public static <E> Merger<E> samePath(BinaryOperator<E> chooser, Consumer<? super E> consumer) {
+        Objects.requireNonNull(chooser, "chooser");
+        return new Merger<>(consumer, consumer, (first, second) -> consumer.accept(chooser.apply(first, second)));
+    }
+
     public Merger {
         Objects.requireNonNull(firstOnlyConsumer, "firstOnlyConsumer");
         Objects.requireNonNull(secondOnlyConsumer, "secondOnlyConsumer");
         Objects.requireNonNull(sharedConsumer, "sharedConsumer");
     }
 
-    public <K> void mergePreserveOrder(List<? extends E> first, List<? extends E> second, Function<E, K> keyExtractor) {
+    public <K> void mergePreserveOrder(List<? extends E> first, List<? extends E> second, Function<? super E, ? extends K> keyExtractor) {
         if (first instanceof RandomAccess && second instanceof RandomAccess) {
             mergePreserveOrderRA(first, second, keyExtractor);
         } else {
@@ -121,7 +126,7 @@ public record Merger<E>(Consumer<? super E> firstOnlyConsumer,
 //        return out;
     }
 
-    private <K> void mergePreserveOrderNRA(List<? extends E> first, List<? extends E> second, Function<E, K> keyExtractor) {
+    private <K> void mergePreserveOrderNRA(List<? extends E> first, List<? extends E> second, Function<? super E, ? extends K> keyExtractor) {
         mergePreserveOrderRA(new ArrayList<>(first), new ArrayList<>(second), keyExtractor);
     }
 }

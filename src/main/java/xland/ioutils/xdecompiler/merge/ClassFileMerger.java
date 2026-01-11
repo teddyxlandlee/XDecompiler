@@ -6,7 +6,7 @@ import xland.ioutils.xdecompiler.util.CommonUtils;
 import xland.ioutils.xdecompiler.util.Merger;
 
 import java.lang.classfile.*;
-import java.lang.classfile.attribute.RuntimeInvisibleAnnotationsAttribute;
+import java.lang.classfile.attribute.*;
 import java.lang.classfile.constantpool.ClassEntry;
 import java.lang.classfile.constantpool.Utf8Entry;
 import java.lang.constant.ClassDesc;
@@ -82,7 +82,14 @@ public record ClassFileMerger(List<Function<ClassDesc, ClassTransform>> postTran
                 }
                 case RuntimeInvisibleAnnotationsAttribute invisibleAnnotations -> // Delay visit
                         this.invisibleAnnotationsAttribute = invisibleAnnotations;
-                case FieldModel _, MethodModel _ -> {}  // compare later
+                case FieldModel _, MethodModel _,
+                     InnerClassesAttribute _,
+                     NestMembersAttribute _,
+                     PermittedSubclassesAttribute _,
+
+                     RuntimeInvisibleTypeAnnotationsAttribute _,
+                     RuntimeVisibleAnnotationsAttribute _,
+                     RuntimeVisibleTypeAnnotationsAttribute _-> {}  // compare later
                 default -> builder.with(element);
             }
         }
@@ -90,6 +97,7 @@ public record ClassFileMerger(List<Function<ClassDesc, ClassTransform>> postTran
         @Override
         public void atEnd(ClassBuilder builder) {
             mergeFieldsAndMethods(builder);
+            mergeMiscAttributes(builder);
             appendInvisibleAnnotations(builder);
         }
 
@@ -104,22 +112,58 @@ public record ClassFileMerger(List<Function<ClassDesc, ClassTransform>> postTran
             return name.stringValue().concat(desc.stringValue());
         }
 
+        private void mergeMiscAttributes(ClassBuilder builder) {
+            // InnerClasses
+            merge(Attributes.innerClasses(), InnerClassesAttribute::classes, info -> info.innerClass().asSymbol())
+                    .ifPresent(l -> builder.with(InnerClassesAttribute.of(l)));
+            // NestMembers
+            merge(Attributes.nestMembers(), NestMembersAttribute::nestMembers, ClassEntry::asSymbol)
+                    .ifPresent(l -> builder.with(NestMembersAttribute.of(l)));
+            // PermittedSubclasses
+            merge(Attributes.permittedSubclasses(), PermittedSubclassesAttribute::permittedSubclasses, ClassEntry::asSymbol)
+                    .ifPresent(l -> builder.with(PermittedSubclassesAttribute.of(l)));
+            // RuntimeVisibleAnnotations
+            // TODO: Type Annotations; Annotations for fields/methods
+            merge(Attributes.runtimeVisibleAnnotations(), RuntimeVisibleAnnotationsAttribute::annotations, Annotation::classSymbol)
+                    .ifPresent(l -> builder.with(RuntimeVisibleAnnotationsAttribute.of(l)));
+        }
+
+        private <A extends Attribute<A>, T, K> Optional<List<T>> merge(AttributeMapper<A> mapper,
+                                                                       Function<? super A, ? extends List<T>> listGetter,
+                                                                       Function<? super T, ? extends K> keyExtractor) {
+            Optional<A> first = clientModel.findAttribute(mapper);
+            Optional<A> second = serverModel.findAttribute(mapper);
+            return merge(first.orElse(null), second.orElse(null), listGetter, keyExtractor);
+        }
+
+        private static <A extends Attribute<A>, T, K> Optional<List<T>> merge(@Nullable A first, @Nullable A second,
+                                                                              Function<? super A, ? extends List<T>> listGetter,
+                                                                              Function<? super T, ? extends K> keyExtractor) {
+            if (first != null && second != null) {
+                List<T> result = CommonUtils.mergePreserveOrder(listGetter.apply(first), listGetter.apply(second), keyExtractor);
+                if (result.isEmpty()) return Optional.empty();
+                return Optional.of(result);
+            }
+
+            if (first == null && second == null) return Optional.empty();
+
+            return Optional.of(listGetter.apply(Objects.requireNonNullElse(first, second)));
+        }
+
         private void appendInvisibleAnnotations(ClassBuilder builder) {
+            RuntimeInvisibleAnnotationsAttribute attr;
             if (sidedInterfaces.isEmpty()) {
                 // Visit it as is
-                builder.with(invisibleAnnotationsAttribute);
+                attr = invisibleAnnotationsAttribute;
             } else {
-                var invisibleAnnotations = invisibleAnnotationsAttribute;
+                var prevInvisibleAnnotations = invisibleAnnotationsAttribute;
                 ArrayList<Annotation> rootAnnotations = new ArrayList<>();
                 ArrayList<AnnotationValue> envInterfaceElements = new ArrayList<>();
                 envInterfaceElements.ensureCapacity(sidedInterfaces.size());
 
-                final Utf8Entry u8_itf = builder.constantPool().utf8Entry("itf");
-                final Utf8Entry u8_value = builder.constantPool().utf8Entry("value");
-
-                if (invisibleAnnotations != null) {
-                    rootAnnotations.ensureCapacity(invisibleAnnotations.annotations().size());
-                    invisibleAnnotations.annotations().forEach(a -> {
+                if (prevInvisibleAnnotations != null) {
+                    rootAnnotations.ensureCapacity(prevInvisibleAnnotations.annotations().size());
+                    prevInvisibleAnnotations.annotations().forEach(a -> {
                         if (!a.classSymbol().equals(CD_ItfList)) {
                             if (!a.classSymbol().equals(CD_Itf)) {
                                 rootAnnotations.add(a);
@@ -143,17 +187,24 @@ public record ClassFileMerger(List<Function<ClassDesc, ClassTransform>> postTran
                     sidedInterfaces.forEach((itf, side) -> envInterfaceElements.add(
                             AnnotationValue.ofAnnotation(Annotation.of(
                                 CD_Itf,
-                                AnnotationElement.of(u8_itf, AnnotationValue.ofClass(itf)),
-                                AnnotationElement.of(u8_value, AnnotationValue.ofEnum(CD_Side, side))
+                                AnnotationElement.of("itf", AnnotationValue.ofClass(itf)),
+                                AnnotationElement.of("value", AnnotationValue.ofEnum(CD_Side, side))
                             ))
                     ));
                 }
 
                 rootAnnotations.add(Annotation.of(
                         CD_ItfList,
-                        AnnotationElement.of(u8_value, AnnotationValue.ofArray(envInterfaceElements))
+                        AnnotationElement.of("value", AnnotationValue.ofArray(envInterfaceElements))
                 ));
+                attr = RuntimeInvisibleAnnotationsAttribute.of(rootAnnotations);
             }
+            merge(
+                    attr,
+                    serverModel.findAttribute(Attributes.runtimeInvisibleAnnotations()).orElse(null),
+                    RuntimeInvisibleAnnotationsAttribute::annotations,
+                    Annotation::classSymbol
+            ).ifPresent(l -> builder.with(RuntimeInvisibleAnnotationsAttribute.of(l)));
         }
     }
 
