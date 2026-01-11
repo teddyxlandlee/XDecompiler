@@ -28,10 +28,6 @@ public final class CommonUtils {
         return result;
     }
 
-    public static <E> List<E> mergePreserveOrder(List<? extends E> first, List<? extends E> second) {
-        return mergePreserveOrder(first, second, Function.identity());
-    }
-
     public static void sneakyThrow(Throwable t) {
         sneakyThrow0(t);
     }

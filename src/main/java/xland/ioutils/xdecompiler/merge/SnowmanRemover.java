@@ -28,6 +28,7 @@ import java.lang.classfile.instruction.LocalVariableType;
 import java.util.List;
 import java.util.Optional;
 
+@Deprecated
 public final class SnowmanRemover implements ClassTransform {
     private static final String SNOWMAN = "☃";  // U+2603
 

@@ -25,6 +25,7 @@ import java.lang.constant.ConstantDescs;
 import java.lang.reflect.AccessFlag;
 import java.util.List;
 
+@Deprecated
 public final class SyntheticParameterFixer implements ClassTransform {
     private final ClassDesc thisClass;
 

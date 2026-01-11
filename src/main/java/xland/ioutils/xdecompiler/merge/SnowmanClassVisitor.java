@@ -21,6 +21,8 @@ import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 
 public class SnowmanClassVisitor extends ClassVisitor {
+	private static final String SNOWMAN = "☃";	// U+2603
+
 	public static class SnowmanMethodVisitor extends MethodVisitor {
 		public SnowmanMethodVisitor(int api, MethodVisitor methodVisitor) {
 			super(api, methodVisitor);
@@ -28,7 +30,7 @@ public class SnowmanClassVisitor extends ClassVisitor {
 
 		@Override
 		public void visitParameter(final String name, final int access) {
-			if (name != null && name.startsWith("☃")) {
+			if (name != null && name.startsWith(SNOWMAN)) {
 				super.visitParameter(null, access);
 			} else {
 				super.visitParameter(name, access);
@@ -44,7 +46,7 @@ public class SnowmanClassVisitor extends ClassVisitor {
 				final Label end,
 				final int index) {
 			String newName = name;
-			if (name != null && name.startsWith("☃")) {
+			if (name != null && name.startsWith(SNOWMAN)) {
 				//newName = "lvt" + index;
 				newName = "$$" + index;	// to make it invalid
 			}
