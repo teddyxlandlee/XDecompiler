@@ -17,96 +17,14 @@ package xland.ioutils.xdecompiler.util;
 
 import java.security.SecureRandom;
 import java.util.*;
+import java.util.function.*;
 import java.util.random.RandomGenerator;
 
 public final class CommonUtils {
     public static <E> List<E> mergePreserveOrder(List<? extends E> first, List<? extends E> second) {
-        if (first instanceof RandomAccess && second instanceof RandomAccess) {
-            return mergePreserveOrderRA(first, second);
-        } else {
-            return mergePreserveOrderNRA(first, second);
-        }
-    }
-
-    private static <E> List<E> mergePreserveOrderRA(List<? extends E> first, List<? extends E> second) {
-        List<E> out = new ArrayList<>();
-        Set<E> firstSet = new HashSet<>(first);
-        Set<E> secondSet = new HashSet<>(second);
-
-        int i = 0, j = 0;
-
-        while (i < first.size() || j < second.size()) {
-            // same index, same element
-            while (i < first.size() && j < second.size() &&
-                    Objects.equals(first.get(i), second.get(j))) {
-                out.add(first.get(i));
-                i++;
-                j++;
-            }
-
-            // first-only
-            while (i < first.size() && !secondSet.contains(first.get(i))) {
-                out.add(first.get(i));
-                i++;
-            }
-
-            // second-only
-            while (j < second.size() && !firstSet.contains(second.get(j))) {
-                out.add(second.get(j));
-                j++;
-            }
-
-            // shared, unmatched index
-            if (i < first.size() && j < second.size() &&
-                    !Objects.equals(first.get(i), second.get(j))) {
-                // add the first one, arbitrarily
-                out.add(first.get(i));
-                i++;
-            }
-        }
-
-        return out;
-    }
-
-    private static <E> List<E> mergePreserveOrderNRA(List<? extends E> first, List<? extends E> second) {
-        ArrayList<E> out = new ArrayList<>();
-        HashSet<E> firstSet = new HashSet<>(first);
-        HashSet<E> secondSet = new HashSet<>(second);
-
-        ListIterator<? extends E> firstIter = first.listIterator();
-        ListIterator<? extends E> secondIter = second.listIterator();
-
-        while (firstIter.hasNext() && secondIter.hasNext()) {
-            E firstElem = firstIter.next();
-            E secondElem = secondIter.next();
-
-            if (Objects.equals(firstElem, secondElem)) {
-                out.add(firstElem);
-            } else {
-                // rollback
-                firstIter.previous();
-                secondIter.previous();
-                break;
-            }
-        }
-
-        // remaining of first
-        while (firstIter.hasNext()) {
-            E elem = firstIter.next();
-            if (!secondSet.contains(elem)) {
-                out.add(elem);
-            }
-        }
-
-        // remaining of second
-        while (secondIter.hasNext()) {
-            E elem = secondIter.next();
-            if (!firstSet.contains(elem)) {
-                out.add(elem);
-            }
-        }
-
-        return out;
+        var result = new ArrayList<E>(first.size() + second.size());
+        new Merger<E>(result::add, result::add, (a, _) -> result.add(a)).mergePreserveOrder(first, second, Function.identity());
+        return result;
     }
 
     public static void sneakyThrow(Throwable t) {
@@ -116,6 +34,14 @@ public final class CommonUtils {
     @SuppressWarnings("unchecked")
     private static <T extends Throwable> void sneakyThrow0(Throwable t) throws T {
         throw (T) t;
+    }
+
+    public static <E> BiConsumer<E, E> dropSecond(Consumer<? super E> consumer) {
+        return (a, _) -> consumer.accept(a);
+    }
+
+    public static <E> BinaryOperator<E> dropSecond() {
+        return (a, _) -> a;
     }
 
     private static final String CHAR_POOL_NANO_ID = "0123456789abcdefghijklmnopqrstuvwxyz";

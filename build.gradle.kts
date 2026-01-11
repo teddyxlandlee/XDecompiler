@@ -42,15 +42,15 @@ spotless {
 }
 
 dependencies {
-    val asmVersion = project.property("asm_version")!!
+//    val asmVersion = project.property("asm_version")!!
 
     implementation("net.sf.jopt-simple:jopt-simple:5.0.4")
     implementation("net.fabricmc:mapping-io:0.8.0")
     implementation("net.fabricmc:tiny-remapper:0.12.2")
-    implementation("org.ow2.asm:asm:${asmVersion}")
-    implementation("org.ow2.asm:asm-commons:${asmVersion}")
-    implementation("org.ow2.asm:asm-tree:${asmVersion}")
-    implementation("org.ow2.asm:asm-util:${asmVersion}")
+//    implementation("org.ow2.asm:asm:${asmVersion}")
+//    implementation("org.ow2.asm:asm-commons:${asmVersion}")
+//    implementation("org.ow2.asm:asm-tree:${asmVersion}")
+//    implementation("org.ow2.asm:asm-util:${asmVersion}")
     implementation("org.sharegov:mjson:1.4.2") {
         exclude(group = "junit")
     }

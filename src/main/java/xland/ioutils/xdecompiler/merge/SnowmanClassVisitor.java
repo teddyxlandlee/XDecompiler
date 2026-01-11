@@ -19,6 +19,7 @@ import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
 
+@Deprecated
 public class SnowmanClassVisitor extends ClassVisitor {
 	public static class SnowmanMethodVisitor extends MethodVisitor {
 		public SnowmanMethodVisitor(int api, MethodVisitor methodVisitor) {

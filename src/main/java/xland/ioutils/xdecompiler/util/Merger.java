@@ -1,104 +1,127 @@
 package xland.ioutils.xdecompiler.util;
 
 import java.util.*;
-import java.util.function.Function;
+import java.util.function.*;
+import java.util.stream.Collectors;
 
-public record Merger<E, R>(Function<E, R> firstOnlyTransformer,
-                           Function<E, R> secondOnlyTransformer,
-                           Function<E, R> sharedTransformer) {
-    private static final Merger<?, ?> NO_TRANSFORM = new Merger<>(Function.identity(), Function.identity(), Function.identity());
+public record Merger<E>(Consumer<? super E> firstOnlyConsumer,
+                        Consumer<? super E> secondOnlyConsumer,
+                        BiConsumer<? super E, ? super E> sharedConsumer) {
+    public static <E, S> Merger<E> extraWhenSided(S stateMarkerFirst, S stateMarkerSecond,
+                                                  BinaryOperator<E> chooser,
+                                                  Consumer<? super E> publicConsumer,
+                                                  BiConsumer<? super E, ? super S> sidedConsumer) {
+        Objects.requireNonNull(chooser, "chooser");
+        Objects.requireNonNull(publicConsumer, "publicConsumer");
+        Objects.requireNonNull(sidedConsumer, "sidedConsumer");
 
-    @SuppressWarnings("unchecked")
-    public static <T> Merger<T, T> noTransform() {
-        return (Merger<T, T>) NO_TRANSFORM;
+        return new Merger<>(
+                e -> {
+                    publicConsumer.accept(e);
+                    sidedConsumer.accept(e, stateMarkerFirst);
+                },
+                e -> {
+                    publicConsumer.accept(e);
+                    sidedConsumer.accept(e, stateMarkerSecond);
+                },
+                (e1, e2) -> publicConsumer.accept(chooser.apply(e1, e2)));
     }
 
-    public List<R> mergePreserveOrder(List<? extends E> first, List<? extends E> second) {
+    public static <E, S> Merger<E> specialWhenSided(S stateMarkerFirst, S stateMarkerSecond,
+                                                    BiConsumer<? super E, ? super E> sharedConsumer,
+                                                    BiConsumer<? super E, ? super S> sidedConsumer) {
+        Objects.requireNonNull(sidedConsumer, "sidedConsumer");
+
+        return new Merger<>(
+                e -> sidedConsumer.accept(e, stateMarkerFirst),
+                e -> sidedConsumer.accept(e, stateMarkerSecond),
+                sharedConsumer
+        );
+    }
+
+    public Merger {
+        Objects.requireNonNull(firstOnlyConsumer, "firstOnlyConsumer");
+        Objects.requireNonNull(secondOnlyConsumer, "secondOnlyConsumer");
+        Objects.requireNonNull(sharedConsumer, "sharedConsumer");
+    }
+
+    public <K> void mergePreserveOrder(List<? extends E> first, List<? extends E> second, Function<E, K> keyExtractor) {
         if (first instanceof RandomAccess && second instanceof RandomAccess) {
-            return mergePreserveOrderRA(first, second);
+            mergePreserveOrderRA(first, second, keyExtractor);
         } else {
-            return mergePreserveOrderNRA(first, second);
+            mergePreserveOrderNRA(first, second, keyExtractor);
         }
     }
 
-    private List<R> mergePreserveOrderRA(List<? extends E> first, List<? extends E> second) {
-        ArrayList<R> out = new ArrayList<>();
-        HashSet<E> firstSet = new HashSet<>(first);
-        HashSet<E> secondSet = new HashSet<>(second);
+    private <K> void mergePreserveOrderRA(
+            List<? extends E> first,
+            List<? extends E> second,
+            Function<? super E, ? extends K> keyExtractor) {
+
+        // Precompute key sets for membership test
+        Map<K, E> firstEntries = first.stream().collect(Collectors.toMap(keyExtractor, Function.identity()));
+        Map<K, E> secondEntries = second.stream().collect(Collectors.toMap(keyExtractor, Function.identity()));
 
         int i = 0, j = 0;
 
         while (i < first.size() || j < second.size()) {
-            // same index, same element
-            while (i < first.size() && j < second.size() &&
-                    Objects.equals(first.get(i), second.get(j))) {
-                out.add(sharedTransformer.apply(first.get(i)));
+            final int saved = i + j;
+
+            // Align elements with same key at current positions
+            while (i < first.size() && j < second.size()) {
+                K key1 = keyExtractor.apply(first.get(i));
+                K key2 = keyExtractor.apply(second.get(j));
+                if (!Objects.equals(key1, key2)) {
+                    break;
+                }
+                // Keys match -> treat as shared
+                sharedConsumer.accept(first.get(i), second.get(j));
                 i++;
                 j++;
             }
 
-            // first-only
-            while (i < first.size() && !secondSet.contains(first.get(i))) {
-                out.add(firstOnlyTransformer.apply(first.get(i)));
+            // Consume first-only elements (not in second)
+            while (i < first.size() && !secondEntries.containsKey(keyExtractor.apply(first.get(i)))) {
+                firstOnlyConsumer.accept(first.get(i));
                 i++;
             }
 
-            // second-only
-            while (j < second.size() && !firstSet.contains(second.get(j))) {
-                out.add(secondOnlyTransformer.apply(second.get(j)));
+            // Consume second-only elements (not in first)
+            while (j < second.size() && !firstEntries.containsKey(keyExtractor.apply(second.get(j)))) {
+                secondOnlyConsumer.accept(second.get(j));
                 j++;
             }
 
-            // shared, unmatched index
-            if (i < first.size() && j < second.size() &&
-                    !Objects.equals(first.get(i), second.get(j))) {
-                // add the first one, arbitrarily
-                out.add(sharedTransformer.apply(first.get(i)));
-                i++;
+            // If no progress was made, fall back to drain both lists
+            if (i + j == saved) {
+                // Drain remaining of first
+                for (; i < first.size(); i++) {
+                    E e = first.get(i);
+                    K k = keyExtractor.apply(e);
+                    boolean isShared = secondEntries.containsKey(k);
+                    if (isShared) {
+                        sharedConsumer.accept(e, secondEntries.get(k));
+                    } else {
+                        firstOnlyConsumer.accept(e);
+                    }
+                }
+
+                // Drain remaining of second, but skip already processed shared ones
+                for (; j < second.size(); j++) {
+                    E e = second.get(j);
+                    K k = keyExtractor.apply(e);
+                    if (!firstEntries.containsKey(k)) {
+                        secondOnlyConsumer.accept(e);
+                    }
+                    // If it's shared, it was already handled in the first loop above
+                }
             }
         }
 
-        return out;
+//        return out;
     }
 
-    private List<R> mergePreserveOrderNRA(List<? extends E> first, List<? extends E> second) {
-        ArrayList<R> out = new ArrayList<>();
-        HashSet<E> firstSet = new HashSet<>(first);
-        HashSet<E> secondSet = new HashSet<>(second);
-
-        ListIterator<? extends E> firstIter = first.listIterator();
-        ListIterator<? extends E> secondIter = second.listIterator();
-
-        while (firstIter.hasNext() && secondIter.hasNext()) {
-            E firstElem = firstIter.next();
-            E secondElem = secondIter.next();
-
-            if (Objects.equals(firstElem, secondElem)) {
-                out.add(sharedTransformer.apply(firstElem));
-            } else {
-                // rollback
-                firstIter.previous();
-                secondIter.previous();
-                break;
-            }
-        }
-
-        // remaining of first
-        while (firstIter.hasNext()) {
-            E elem = firstIter.next();
-            if (!secondSet.contains(elem)) {
-                out.add(firstOnlyTransformer.apply(elem));
-            }
-        }
-
-        // remaining of second
-        while (secondIter.hasNext()) {
-            E elem = secondIter.next();
-            if (!firstSet.contains(elem)) {
-                out.add(secondOnlyTransformer.apply(elem));
-            }
-        }
-
-        return out;
+    private <K> void mergePreserveOrderNRA(List<? extends E> first, List<? extends E> second, Function<E, K> keyExtractor) {
+        mergePreserveOrderRA(new ArrayList<>(first), new ArrayList<>(second), keyExtractor);
     }
 }

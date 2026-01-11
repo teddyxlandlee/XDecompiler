@@ -15,20 +15,17 @@
  */
 package xland.ioutils.xdecompiler.merge;
 
+import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.Nullable;
-import org.objectweb.asm.ClassReader;
-import org.objectweb.asm.ClassVisitor;
-import org.objectweb.asm.ClassWriter;
-import org.objectweb.asm.Opcodes;
-import org.slf4j.Logger;
 import xland.ioutils.xdecompiler.util.CommonUtils;
 import xland.ioutils.xdecompiler.util.ConcurrentUtils;
-import xland.ioutils.xdecompiler.util.LogUtils;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
+import java.lang.classfile.ClassTransform;
+import java.lang.constant.ClassDesc;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -36,12 +33,12 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Function;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 import java.util.zip.ZipOutputStream;
 
 public class JarMerger implements AutoCloseable {
-    private static final Logger LOGGER = LogUtils.getLogger();
     private final ZipFile inputClient, inputServer;
     private final ZipOutputStream output;
     private final @Nullable ZipOutputStream outputResources;
@@ -132,8 +129,12 @@ public class JarMerger implements AutoCloseable {
         Set<String> entriesAll = LinkedHashSet.newLinkedHashSet(entriesClient.size() + entriesServer.size());
         entriesAll.addAll(entriesClient.keySet());
         entriesAll.addAll(entriesServer.keySet());
+
+        var mergerExtraTransformers = new ArrayList<Function<ClassDesc, ClassTransform>>(2);
+        if (this.removeSnowmen) mergerExtraTransformers.add(_ -> new SnowmanRemover());
+        if (this.offsetSyntheticsParams) mergerExtraTransformers.add(SyntheticParameterFixer::new);
         
-        ClassMerger cm = new ClassMerger();
+        ClassMerger cm = new ClassFileMerger(mergerExtraTransformers);
 
         BlockingQueue<Entry> entryQueue = new ArrayBlockingQueue<>(entriesAll.size());
         AtomicBoolean isComplete = new AtomicBoolean();
@@ -155,53 +156,28 @@ public class JarMerger implements AutoCloseable {
 
         entriesAll.parallelStream().forEach((String entry) -> {
             boolean isClass = entry.endsWith(".class");
-
             boolean isMinecraft = entriesClient.containsKey(entry) || entry.startsWith("net/minecraft/") || !entry.contains("/");
+
             Entry result;
-            String side = null;
 
             Entry entry1 = entriesClient.get(entry);
             Entry entry2 = entriesServer.get(entry);
+            assert entry1 != null || entry2 != null;
+            // entry1 != null -> isMinecraft
+            assert !isMinecraft || entry1 != null;
 
-            if (entry1 != null && entry2 != null) {
-                if (Arrays.equals(entry1.data, entry2.data)) {
-                    result = entry1;
-                } else if (isClass) {
-                    result = new Entry(entry1.path, cm.merge(entry1.data, entry2.data));
-                } else {
-                    result = entry1;
-                }
-            } else if ((result = entry1) != null) {
-                side = "CLIENT";
-            } else if ((result = entry2) != null) {
-                side = "SERVER";
-            }
-
-            if (isClass && !isMinecraft && "SERVER".equals(side)) {
+            if (!isClass) {
+                // Arbitrarily choose entry1
+                result = Objects.requireNonNullElse(entry1, entry2);
+            } else if (!isMinecraft && entry1 == null) {
+                // server-only non-minecraft classes
                 // Server may bundle libraries (before net.minecraft.bundler was introduced), client doesn't - skip them
                 return;
+            } else {
+                result = new Entry(entry, cm.merge(Entry.getData(entry1), Entry.getData(entry2)));
             }
 
-            if (result != null) {
-                if (isMinecraft && isClass) {
-                    if (LOGGER.isDebugEnabled()) {
-                        Object cvr = ClassVersionUtil.classVersionBytes(result.data);
-                        LOGGER.debug("Merging {}, class version {}", result.path, cvr);
-                    }
-                    byte[] data = result.data;
-                    ClassReader reader = new ClassReader(data);
-                    ClassWriter writer = new ClassWriter(0);
-                    ClassVisitor visitor = visitThrough(writer, side);
-
-                    if (visitor != writer) {
-                        reader.accept(visitor, 0);
-                        data = writer.toByteArray();
-                        result = new Entry(result.path, data);
-                    }
-                }
-
-                entryQueue.add(result);
-            }
+            entryQueue.add(result);
         });
 
         isComplete.set(true);
@@ -212,24 +188,12 @@ public class JarMerger implements AutoCloseable {
         }
     }
 
-    private ClassVisitor visitThrough(ClassWriter writer, String side) {
-        ClassVisitor visitor = writer;
-
-        if (side != null) {
-            visitor = new ClassMerger.SidedClassVisitor(Opcodes.ASM9, visitor, side);
+    private record Entry(String path, byte[] data) {
+        @Contract("null -> null")
+        private static byte @Nullable[] getData(@Nullable Entry entry) {
+            return entry != null ? entry.data() : null;
         }
-
-        if (removeSnowmen) {
-            visitor = new SnowmanClassVisitor(Opcodes.ASM9, visitor);
-        }
-
-        if (offsetSyntheticsParams) {
-            visitor = new SyntheticParameterClassVisitor(Opcodes.ASM9, visitor);
-        }
-        return visitor;
     }
-
-    public record Entry(String path, byte[] data) {}
 
     @Override
     public void close() throws Exception {
