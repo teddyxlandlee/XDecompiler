@@ -81,6 +81,6 @@ final class ClassMemberInfoPoolImpl implements ClassMemberInfoPool {
 
     private static void putMember(Map<String, Set<Map.Entry<String, String>>> map,
                                   String owner, String name, String desc) {
-        map.computeIfAbsent(owner, k -> new HashSet<>()).add(Map.entry(name, desc));
+        map.computeIfAbsent(owner, _ -> new HashSet<>()).add(Map.entry(name, desc));
     }
 }

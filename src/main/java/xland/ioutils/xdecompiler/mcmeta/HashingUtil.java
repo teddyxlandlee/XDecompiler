@@ -43,7 +43,7 @@ public final class HashingUtil {
         try {
             return MessageDigest.getInstance(a);
         } catch (NoSuchAlgorithmException e) {
-            throw new AssertionError(e);
+            throw new IllegalStateException("Algorithm not found: " + a, e);
         }
     }
 

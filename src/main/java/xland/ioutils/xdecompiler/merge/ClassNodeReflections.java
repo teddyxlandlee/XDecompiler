@@ -64,4 +64,6 @@ final class ClassNodeReflections {
             varHandle.compareAndSet(node, null, new ArrayList<>());
         }
     }
+
+    private ClassNodeReflections() {}
 }
