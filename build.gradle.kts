@@ -45,8 +45,8 @@ dependencies {
     val asmVersion = project.property("asm_version")!!
 
     implementation("net.sf.jopt-simple:jopt-simple:5.0.4")
-    implementation("net.fabricmc:mapping-io:0.8.0")
-    implementation("net.fabricmc:tiny-remapper:0.13.0")
+    implementation("net.fabricmc:mapping-io:0.9.1")
+    implementation("net.fabricmc:tiny-remapper:0.14.0")
     implementation("org.ow2.asm:asm:${asmVersion}")
     implementation("org.ow2.asm:asm-commons:${asmVersion}")
     implementation("org.ow2.asm:asm-tree:${asmVersion}")
@@ -54,11 +54,11 @@ dependencies {
     implementation("org.sharegov:mjson:1.4.2") {
         exclude(group = "junit")
     }
-    implementation("org.slf4j:slf4j-api:2.0.17")
-    runtimeOnly("org.slf4j:slf4j-simple:2.0.17")
-    compileOnly("org.jetbrains:annotations:26.0.2")
+    implementation("org.slf4j:slf4j-api:2.0.18")
+    runtimeOnly("org.slf4j:slf4j-simple:2.0.18")
+    compileOnly("org.jetbrains:annotations:26.1.0")
 
-    testCompileOnly("org.vineflower:vineflower:1.11.2")
+    testCompileOnly("org.vineflower:vineflower:1.12.0")
 }
 
 tasks.processResources {
