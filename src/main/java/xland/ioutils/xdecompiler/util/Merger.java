@@ -66,11 +66,7 @@ public record Merger<E>(Consumer<? super E> firstOnlyConsumer,
     }
 
     public <K> void mergePreserveOrder(List<? extends E> first, List<? extends E> second, Function<? super E, ? extends K> keyExtractor) {
-        if (first instanceof RandomAccess && second instanceof RandomAccess) {
-            mergePreserveOrderRA(first, second, keyExtractor);
-        } else {
-            mergePreserveOrderNRA(first, second, keyExtractor);
-        }
+        mergePreserveOrderRA(makeRandomAccessList(first), makeRandomAccessList(second), keyExtractor);
     }
 
     private <K> void mergePreserveOrderRA(
@@ -137,11 +133,9 @@ public record Merger<E>(Consumer<? super E> firstOnlyConsumer,
                 }
             }
         }
-
-//        return out;
     }
 
-    private <K> void mergePreserveOrderNRA(List<? extends E> first, List<? extends E> second, Function<? super E, ? extends K> keyExtractor) {
-        mergePreserveOrderRA(new ArrayList<>(first), new ArrayList<>(second), keyExtractor);
+    private static <T> List<T> makeRandomAccessList(List<T> list) {
+        return list instanceof RandomAccess ? list : new ArrayList<>(list);
     }
 }

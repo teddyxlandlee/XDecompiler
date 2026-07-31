@@ -24,7 +24,6 @@ public final class CommonUtils {
     public static <E, K> List<E> mergePreserveOrder(List<? extends E> first, List<? extends E> second, Function<? super E, ? extends K> keyExtractor) {
         var result = new ArrayList<E>(first.size() + second.size());
         Merger.<E>samePath(dropSecond(), result::add).mergePreserveOrder(first, second, keyExtractor);
-        new Merger<E>(result::add, result::add, dropSecond(result::add)).mergePreserveOrder(first, second, Function.identity());
         return result;
     }
 
