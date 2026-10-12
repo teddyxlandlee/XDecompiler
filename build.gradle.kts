@@ -3,8 +3,8 @@ import java.time.ZonedDateTime
 
 plugins {
     id("java")
-    id("com.diffplug.spotless") version "8.2.1"
-    id("com.gradleup.shadow") version "9.3.1"
+    id("com.diffplug.spotless") version "8.10.4"
+    id("com.gradleup.shadow") version "9.6.1"
     `maven-publish`
 }
 
@@ -46,7 +46,7 @@ dependencies {
 
     implementation("net.sf.jopt-simple:jopt-simple:5.0.4")
     implementation("net.fabricmc:mapping-io:0.9.1")
-    implementation("net.fabricmc:tiny-remapper:0.14.0")
+    implementation("net.fabricmc:tiny-remapper:0.15.0")
     implementation("org.ow2.asm:asm:${asmVersion}")
     implementation("org.ow2.asm:asm-commons:${asmVersion}")
     implementation("org.ow2.asm:asm-tree:${asmVersion}")
@@ -54,8 +54,8 @@ dependencies {
     implementation("org.sharegov:mjson:1.4.2") {
         exclude(group = "junit")
     }
-    implementation("org.slf4j:slf4j-api:2.0.18")
-    runtimeOnly("org.slf4j:slf4j-simple:2.0.18")
+    implementation("org.slf4j:slf4j-api:2.0.20")
+    runtimeOnly("org.slf4j:slf4j-simple:2.0.20")
     compileOnly("org.jetbrains:annotations:26.1.0")
 
     testCompileOnly("org.vineflower:vineflower:1.12.0")
