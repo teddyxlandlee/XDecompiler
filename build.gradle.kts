@@ -45,7 +45,7 @@ dependencies {
     val asmVersion = project.property("asm_version")!!
 
     implementation("net.sf.jopt-simple:jopt-simple:5.0.4")
-    implementation("net.fabricmc:mapping-io:0.9.1")
+    implementation("net.fabricmc:mapping-io:0.9.2")
     implementation("net.fabricmc:tiny-remapper:0.15.0")
     implementation("org.ow2.asm:asm:${asmVersion}")
     implementation("org.ow2.asm:asm-commons:${asmVersion}")
